@@ -3,24 +3,22 @@
   "name": "SemiaSB",
   "version": "1.0",
   "description": "Enregistre onglets avec audio/vidéo",
-  
   "icons": {
     "16": "icons/icon16.png",
-    "48": "icons/icon48.png", 
+    "48": "icons/icon48.png",
     "128": "icons/icon128.png",
     "512": "icons/icon512.png"
   },
-  
   "permissions": [
     "tabCapture",
     "tabs",
     "activeTab",
     "sidePanel",
     "downloads",
+    "downloads.open",
     "scripting",
     "storage"
   ],
-  
   "host_permissions": [
     "<all_urls>"
   ],
