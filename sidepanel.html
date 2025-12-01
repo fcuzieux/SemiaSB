@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <title>SemiaSB</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons (local) -->
+  <script src="lucide.min.js"></script>
+</head>
+
+<body>
+  <div class="app-layout">
+    <!-- Menu latéral avec icônes -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h2>SemiaSB</h2>
+        <img src="icons/icon48.png" alt="Logo">
+      </div>
+
+      <div class="sidebar-menu">
+        <button class="menu-item active" data-view="Video-Capture" title="Video Capture">
+          <i data-lucide="video"></i>
+        </button>
+
+        <button class="menu-item" data-view="Note-Capture" title="Note Capture">
+          <i data-lucide="file-text"></i>
+        </button>
+
+        <button class="menu-item" data-view="Ask-Semia" title="Ask SEMIA">
+          <i data-lucide="brain"></i>
+        </button>
+
+        <button class="menu-item" data-view="settings" title="Paramètres">
+          <i data-lucide="settings"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Zone de contenu principal -->
+    <main class="content-area">
+      <!-- Vue: Video Capture -->
+      <div id="view-Video-Capture" class="view-container active">
+        <div class="view-header">
+          <h3>🎞 Video Capture</h3>
+          <p class="view-description">Enregistrez l'audio et la vidéo d'un onglet</p>
+        </div>
+
+        <div class="view-content">
+          <label>
+            <input type="checkbox" id="captureAudio" checked>
+            Capturer l'audio
+          </label>
+          <label>
+            <input type="checkbox" id="captureVideo" checked>
+            Capturer la vidéo
+          </label>
+
+          <div class="row">
+            <button id="startCapture">Démarrer</button>
+            <button id="stopCapture" disabled>Arrêter</button>
+          </div>
+
+          <video id="preview" autoplay muted playsinline></video>
+          <div id="status" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Vue: Note-Capture -->
+      <div id="view-Note-Capture" class="view-container">
+        <div class="view-header capture-header">
+          <h3>📝 Note Capture <button id="captureScreenshot">📸 Capturer</button></h3>
+          <p class="view-description">Capturez et commentez une note</p>
+        </div>
+        <div class="view-content">
+          <label>
+            Titre de la Note
+            <input type="text" id="noteTitle" placeholder="Mon document..."
+              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+          </label>
+
+          <!-- Liste des captures -->
+          <div id="capturesList"></div>
+
+          <!-- Bouton d'export -->
+          <div class="row" id="exportRow" style="display: none;">
+            <button id="exportNote" class="export-btn">💾 Enregistrer la note</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vue: Ask-Semia -->
+      <div id="view-Ask-Semia" class="view-container">
+        <div class="view-header">
+          <h3>🧠 Ask an IA</h3>
+          <p class="view-description">Analyse IA de la page active</p>
+        </div>
+        <div class="view-content">
+          <div class="ai-controls">
+            <button id="ai-scrape-btn"
+              style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">📄 Lire la
+              page</button>
+            <div id="ai-status"
+              style="display:none; margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px;"></div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <label>Ta question</label>
+            <textarea id="ai-question" placeholder="Ex: Résume cette page en 3 points..."
+              style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;"></textarea>
+          </div>
+
+          <div class="row">
+            <button id="ai-analyze-btn" disabled>✨ Analyser avec IA</button>
+          </div>
+
+          <div id="ai-answer" style="margin-top: 20px; line-height: 1.6; font-size: 14px;"></div>
+        </div>
+      </div>
+
+      <!-- Vue: Paramètres -->
+      <div id="view-settings" class="view-container">
+        <div class="view-header">
+          <h3>⚙️ Paramètres</h3>
+          <p class="view-description">Configuration de l'IA</p>
+        </div>
+        <div class="view-content">
+          <label>
+            Fournisseur IA
+            <select id="settings-provider">
+              <option value="semia">SEMIA (gpt-oss:120b)</option>
+              <option value="openai">OpenAI (GPT-4o/Mini)</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="anthropic">Anthropic Claude</option>
+            </select>
+          </label>
+
+          <label>
+            Clé API
+            <input type="password" id="settings-api-key" placeholder="sk-..."
+              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+          </label>
+
+          <label>
+            Modèle (Optionnel)
+            <input type="text" id="settings-model" placeholder="Ex: gpt-4o-mini"
+              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            <small style="color: var(--text-secondary); font-size: 11px;">Laissez vide pour utiliser le modèle par
+              défaut.</small>
+          </label>
+
+          <div class="row">
+            <button id="settings-save-btn">💾 Sauvegarder</button>
+          </div>
+          <div id="settings-status" style="margin-top: 10px; text-align: center; font-size: 13px; min-height: 20px;">
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="settings.js"></script>
+  <script src="note-capture.js"></script>
+  <script src="ask-semia.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+
+</html>
