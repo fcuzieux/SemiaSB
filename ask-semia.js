@@ -9,6 +9,118 @@ function initAIFunction() {
 
     let pageContent = '';
 
+    // --- MISE À JOUR DU TITRE DYNAMIQUE ---
+    const viewAskSemia = document.getElementById('view-Ask-Semia');
+    const titleElement = viewAskSemia?.querySelector('.view-header h3');
+    const subtitleElement = viewAskSemia?.querySelector('.view-header p');
+
+    async function updateHeaderTitle(provider) {
+        if (!titleElement) return;
+
+        let providerName = 'an IA';
+        let providerRemark = '';
+        if (provider === 'openai') {
+            providerName = 'OpenAI';
+            providerRemark = 'Attention c\'est OpenAI tout de même🚨';
+        } else if (provider === 'gemini') {
+            providerName = 'Gemini';
+            providerRemark = 'Attention c\'est Google tout de même🚨';
+        } else if (provider === 'anthropic') {
+            providerName = 'Anthropic';
+            providerRemark = 'Bientôt disponible...⛔';
+        } else if (provider === 'semia') {
+            providerName = 'SEMIA';
+            providerRemark = 'IA conseillée par l\'ONERA✌️';
+        } else if (provider === 'mistral') {
+            providerName = 'Mistral';
+            providerRemark = 'Au moins c\'est français🥖';
+        }
+
+        // Vérifier si le provider est prêt
+        const isReady = await checkProviderReady(provider);
+
+        // Construire le titre avec le statut
+        let statusHTML = '';
+        if (isReady) {
+            statusHTML = '<span style="color: #16a34a; font-size: 14px; margin-left: 10px;">(Ready)</span>';
+        } else {
+            statusHTML = `
+                <span style="color: #dc2626; font-size: 14px; margin-left: 10px;">(Not ready)</span>
+                <button id="goto-settings-btn" style="background: none; border: none; cursor: pointer; margin-left: 5px;" title="Aller aux paramètres">
+                    <i data-lucide="settings" style="width: 18px; height: 18px; color: #dc2626;"></i>
+                </button>
+            `;
+        }
+
+        titleElement.innerHTML = `🧠 Ask ${providerName} ${statusHTML}`;
+        subtitleElement.innerHTML = providerRemark;
+
+        // Réinitialiser les icônes Lucide
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
+        // Ajouter l'event listener pour le bouton settings
+        const gotoSettingsBtn = document.getElementById('goto-settings-btn');
+        if (gotoSettingsBtn) {
+            gotoSettingsBtn.addEventListener('click', () => {
+                // Naviguer vers la page des paramètres
+                const settingsMenuItem = document.querySelector('[data-view="settings"]');
+                if (settingsMenuItem) {
+                    settingsMenuItem.click();
+                }
+            });
+        }
+
+        // Gérer le sous-titre SEMIA
+        const existingSubtitle = document.getElementById('semia-subtitle');
+        if (existingSubtitle) existingSubtitle.remove();
+
+        if (provider === 'semia') {
+            const subtitle = document.createElement('div');
+            subtitle.id = 'semia-subtitle';
+            subtitle.style.color = '#dc2626'; // Rouge
+            subtitle.style.fontSize = '12px';
+            subtitle.style.marginTop = '-5px';
+            subtitle.style.marginBottom = '5px';
+            subtitle.style.fontWeight = 'bold';
+            subtitle.textContent = '(Secured @ONERA)';
+            titleElement.after(subtitle);
+        }
+    }
+
+    // Vérifier si le provider est configuré et prêt
+    async function checkProviderReady(provider) {
+        if (!provider) return false;
+
+        const storageKey = `ai_${provider}`;
+        const result = await chrome.storage.local.get([storageKey]);
+        const settings = result[storageKey] || {};
+
+        // Un provider est prêt s'il a au minimum une clé API
+        return !!settings.apiKey;
+    }
+
+    // Charger le provider au démarrage
+    chrome.storage.local.get(['aiProvider'], async (result) => {
+        await updateHeaderTitle(result.aiProvider || 'semia');
+    });
+
+    // Écouter les changements de paramètres
+    chrome.storage.onChanged.addListener(async (changes, namespace) => {
+        if (namespace === 'local') {
+            // Recharger le titre si le provider change ou si les settings changent
+            if (changes.aiProvider) {
+                await updateHeaderTitle(changes.aiProvider.newValue);
+            } else {
+                // Vérifier si un des ai_* a changé
+                const currentProvider = await chrome.storage.local.get(['aiProvider']);
+                await updateHeaderTitle(currentProvider.aiProvider || 'semia');
+            }
+        }
+    });
+    // --------------------------------------
+
     function showStatus(message, isError = false) {
         if (!statusDiv) return;
         statusDiv.textContent = message;
@@ -71,8 +183,13 @@ function initAIFunction() {
         }
 
         // Récupérer les paramètres
-        const settings = await chrome.storage.local.get(['aiProvider', 'aiApiKey', 'aiModel']);
-        if (!settings.aiApiKey) {
+        const result = await chrome.storage.local.get(['aiProvider']);
+        const provider = result.aiProvider || 'semia';
+        const storageKey = `ai_${provider}`;
+        const providerSettings = await chrome.storage.local.get([storageKey]);
+        const settings = providerSettings[storageKey] || {};
+
+        if (!settings.apiKey) {
             showStatus("❌ Clé API manquante (voir Paramètres)", true);
             return;
         }
@@ -86,13 +203,15 @@ function initAIFunction() {
         try {
             let answer = '';
 
-            if (settings.aiProvider === 'semia') {
-                answer = await callSemiaAI(settings.aiApiKey, settings.aiModel || 'gpt-oss:120b', pageContent, question);
-            } else if (settings.aiProvider === 'openai') {
-                answer = await callOpenAI(settings.aiApiKey, settings.aiModel || 'gpt-4o-mini', pageContent, question);
-            } else if (settings.aiProvider === 'gemini') {
-                answer = await callGemini(settings.aiApiKey, settings.aiModel || 'gemini-1.5-flash', pageContent, question);
-            } else if (settings.aiProvider === 'anthropic') {
+            if (provider === 'semia') {
+                answer = await callSemiaAI(settings.apiKey, settings.model || 'gpt-oss:120b', pageContent, question);
+            } else if (provider === 'mistral') {
+                answer = await callMistral(settings.apiKey, settings.model || 'mistral', pageContent, question);
+            } else if (provider === 'openai') {
+                answer = await callOpenAI(settings.apiKey, settings.model || 'gpt-4o-mini', pageContent, question);
+            } else if (provider === 'gemini') {
+                answer = await callGemini(settings.apiKey, settings.model || 'gemini-1.5-flash', pageContent, question);
+            } else if (provider === 'anthropic') {
                 answer = "L'intégration Anthropic arrive bientôt.";
             } else {
                 answer = "Fournisseur non supporté.";
@@ -154,6 +273,46 @@ function initAIFunction() {
 
         const data = await response.json();
         if (!response.ok) throw new Error(data.error?.message || 'Erreur API OpenAI');
+        return data.choices[0].message.content;
+    }
+
+    // Appel Mistral
+    /**
+     * Appel API Mistral AI pour analyse de page web
+     * @param {string} apiKey - Clé API Mistral (https://console.mistral.ai)
+     * @param {string} model - Modèle Mistral (ex: "mistral-large-latest", "mistral-small", "open-mistral-nemo")
+     * @param {string} context - Contenu scrapé de la page
+     * @param {string} prompt - Question de l'utilisateur
+     * @returns {Promise<string>} Réponse de l'IA
+     */
+    async function callMistral(apiKey, model, context, prompt) {
+        const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    {
+                        role: "system",
+                        content: "Tu es un assistant utile qui analyse le contenu d'une page web fourni. Réponds de manière concise et précise en français."
+                    },
+                    {
+                        role: "user",
+                        content: `Voici le contenu de la page :\n\n${context}\n\nQuestion : ${prompt}`
+                    }
+                ],
+                max_tokens: 2000,
+                temperature: 0.3
+            })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error?.message || `Erreur API Mistral: ${response.status}`);
+        }
         return data.choices[0].message.content;
     }
 

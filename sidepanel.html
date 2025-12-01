@@ -27,7 +27,7 @@
           <i data-lucide="file-text"></i>
         </button>
 
-        <button class="menu-item" data-view="Ask-Semia" title="Ask SEMIA">
+        <button class="menu-item" data-view="Ask-Semia" title="Ask an IA">
           <i data-lucide="brain"></i>
         </button>
 
@@ -73,6 +73,10 @@
           <p class="view-description">Capturez et commentez une note</p>
         </div>
         <div class="view-content">
+          <p class="view-description">📸 Capturer une nouvelle note</p>
+          <br>
+          <p class="view-description">Indiquer le titre de la note, puis cliquer sur "📸 Capturer"</p>
+          <br>
           <label>
             Titre de la Note
             <input type="text" id="noteTitle" placeholder="Mon document..."
@@ -93,9 +97,14 @@
       <div id="view-Ask-Semia" class="view-container">
         <div class="view-header">
           <h3>🧠 Ask an IA</h3>
-          <p class="view-description">Analyse IA de la page active</p>
         </div>
         <div class="view-content">
+          <p class="view-description">Analyse IA de la page active</p>
+          <br>
+          <p class="view-description">📄 Lire la page pour vérifier que l'IA comprend bien le contexte</p>
+          <br>
+          <p class="view-description">✨ Questionner l'IA</p>
+          <br>
           <div class="ai-controls">
             <button id="ai-scrape-btn"
               style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">📄 Lire la
@@ -129,40 +138,15 @@
             Fournisseur IA
             <select id="settings-provider">
               <option value="semia">SEMIA (gpt-oss:120b)</option>
+              <option value="mistral">Mistral (open-mistral-nemo)</option>
               <option value="openai">OpenAI (GPT-4o/Mini)</option>
               <option value="gemini">Google Gemini</option>
               <option value="anthropic">Anthropic Claude</option>
             </select>
           </label>
 
-          <label>
-            Clé API
-            <input type="password" id="settings-api-key" placeholder="sk-..."
-              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
-          </label>
-
-          <label>
-            Modèle (Optionnel)
-            <input type="text" id="settings-model" placeholder="Ex: gpt-4o-mini"
-              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
-            <small style="color: var(--text-secondary); font-size: 11px;">Laissez vide pour utiliser le modèle par
-              défaut.</small>
-          </label>
-
-          <div class="row">
-            <button id="settings-save-btn">💾 Sauvegarder</button>
-          </div>
-          <div id="settings-status" style="margin-top: 10px; text-align: center; font-size: 13px; min-height: 20px;">
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <script src="settings.js"></script>
-  <script src="note-capture.js"></script>
-  <script src="ask-semia.js"></script>
-  <script src="sidepanel.js"></script>
+          <script src="ask-semia.js"></script>
+          <script src="sidepanel.js"></script>
 </body>
 
 </html>
