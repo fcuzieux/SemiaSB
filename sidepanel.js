@@ -55,19 +55,36 @@ function setupMediaRecorder(stream) {
     }
   };
 
-  mediaRecorder.onstop = () => {
+  mediaRecorder.onstop = async () => {
     const blob = new Blob(recordedChunks, { type: "video/webm" });
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
     const filename = `capture-onglet-${timestamp}.webm`;
     const url = URL.createObjectURL(blob);
 
+    // Récupérer le dossier de sauvegarde configuré
+    const settings = await chrome.storage.local.get(['backupFolder']);
+    const backupFolder = settings.backupFolder || '';
+
+    // Note: Chrome ne permet pas de spécifier un chemin absolu dans filename
+    // On utilise uniquement le nom du fichier et suggère le dossier via conflictAction
+    const downloadOptions = {
+      url: url,
+      filename: filename,
+      saveAs: true
+    };
+
+    // Si un dossier de sauvegarde est configuré, on l'ajoute au nom du fichier
+    // Chrome interprétera les "/" comme des sous-dossiers relatifs au dossier de téléchargement
+    if (backupFolder) {
+      // Extraire juste le nom du dernier dossier pour créer un sous-dossier
+      const folderName = backupFolder.split(/[/\\]/).pop() || 'SemiaSB';
+      downloadOptions.filename = `${folderName}/${filename}`;
+    }
+
     if (chrome.downloads && chrome.downloads.download) {
-      chrome.downloads.download({
-        url: url,
-        filename: filename,
-        saveAs: true
-      }, () => {
+      chrome.downloads.download(downloadOptions, (downloadId) => {
         if (chrome.runtime.lastError) {
+          console.error('Download error:', chrome.runtime.lastError);
           showStatus('Enregistré ! (mode fallback)', true);
           triggerDownload(url, filename);
         } else {

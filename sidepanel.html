@@ -16,6 +16,7 @@
       <div class="sidebar-header">
         <h2>SemiaSB</h2>
         <img src="icons/icon48.png" alt="Logo">
+        <h4>by LID</h4>
       </div>
 
       <div class="sidebar-menu">
@@ -29,6 +30,10 @@
 
         <button class="menu-item" data-view="Ask-Semia" title="Ask an IA">
           <i data-lucide="brain"></i>
+        </button>
+
+        <button class="menu-item" data-view="folder" title="Dossier">
+          <i data-lucide="folder"></i>
         </button>
 
         <button class="menu-item" data-view="settings" title="Paramètres">
@@ -93,10 +98,36 @@
         </div>
       </div>
 
+
+
+      <!-- Vue: Folder -->
+      <div id="view-folder" class="view-container">
+        <div class="view-header capture-header">
+          <h3>📂 Mes Dossiers</h3>
+          <p class="view-description">Gestion des dossiers</p>
+        </div>
+        <div class="view-content">
+          <h3>Mes Notes</h3>
+
+          <!-- Liste des captures -->
+          <div id="capturesList"></div>
+
+        </div>
+        <div class="view-content">
+          <h3>Mes Vidéos</h3>
+
+          <!-- Liste des captures -->
+          <div id="capturesList"></div>
+
+        </div>
+      </div>
+
+
       <!-- Vue: Ask-Semia -->
       <div id="view-Ask-Semia" class="view-container">
         <div class="view-header">
           <h3>🧠 Ask an IA</h3>
+          <p class="view-description">Analyse IA de la page active</p>
         </div>
         <div class="view-content">
           <p class="view-description">Analyse IA de la page active</p>
@@ -131,9 +162,11 @@
       <div id="view-settings" class="view-container">
         <div class="view-header">
           <h3>⚙️ Paramètres</h3>
-          <p class="view-description">Configuration de l'IA</p>
+          <p class="view-description">Configuration de l'extension</p>
         </div>
         <div class="view-content">
+          <h4 style="margin-bottom: 15px; color: var(--text-primary);">🤖 Configuration IA</h4>
+
           <label>
             Fournisseur IA
             <select id="settings-provider">
@@ -145,8 +178,50 @@
             </select>
           </label>
 
-          <script src="ask-semia.js"></script>
-          <script src="sidepanel.js"></script>
+          <label>
+            Clé API
+            <input type="password" id="settings-api-key" placeholder="sk-..."
+              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+          </label>
+
+          <label>
+            Modèle (Optionnel)
+            <input type="text" id="settings-model" placeholder="Ex: gpt-4o-mini"
+              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            <small style="color: var(--text-secondary); font-size: 11px;">Laissez vide pour utiliser le modèle par
+              défaut.</small>
+          </label>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid var(--border-color);">
+
+          <h4 style="margin-bottom: 15px; color: var(--text-primary);">💾 Sauvegardes</h4>
+
+          <label>
+            Dossier de sauvegarde par défaut
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+              <input type="text" id="settings-backup-folder" placeholder="Aucun dossier sélectionné" readonly
+                style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); background: #f9fafb; cursor: not-allowed;">
+              <button id="select-folder-btn" style="padding: 10px 15px; white-space: nowrap;">📁 Parcourir</button>
+            </div>
+            <small style="color: var(--text-secondary); font-size: 11px;">
+              Dossier utilisé par défaut pour enregistrer les notes et vidéos capturées.
+            </small>
+          </label>
+
+          <div class="row" style="margin-top: 30px;">
+            <button id="settings-save-btn">💾 Sauvegarder tous les paramètres</button>
+          </div>
+          <div id="settings-status" style="margin-top: 10px; text-align: center; font-size: 13px; min-height: 20px;">
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="settings.js"></script>
+  <script src="note-capture.js"></script>
+  <script src="ask-semia.js"></script>
+  <script src="sidepanel.js"></script>
 </body>
 
 </html>

@@ -97,7 +97,7 @@ function initNoteCapture() {
   }
 
   // Exporter en HTML
-  exportBtn?.addEventListener('click', () => {
+  exportBtn?.addEventListener('click', async () => {
     if (captures.length === 0) {
       alert('Aucune capture à exporter.');
       return;
@@ -121,13 +121,27 @@ function initNoteCapture() {
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     const filename = `${safeTitle}-${timestamp}.html`;
 
+    // Récupérer le dossier de sauvegarde configuré
+    const settings = await chrome.storage.local.get(['backupFolder']);
+    const backupFolder = settings.backupFolder || '';
+
+    // Note: Chrome ne permet pas de spécifier un chemin absolu dans filename
+    const downloadOptions = {
+      url: url,
+      filename: filename,
+      saveAs: true
+    };
+
+    // Si un dossier de sauvegarde est configuré, créer un sous-dossier relatif
+    if (backupFolder) {
+      const folderName = backupFolder.split(/[/\\]/).pop() || 'SemiaSB';
+      downloadOptions.filename = `${folderName}/${filename}`;
+    }
+
     if (chrome.downloads && chrome.downloads.download) {
-      chrome.downloads.download({
-        url: url,
-        filename: filename,
-        saveAs: true
-      }, () => {
+      chrome.downloads.download(downloadOptions, (downloadId) => {
         if (chrome.runtime.lastError) {
+          console.error('Download error:', chrome.runtime.lastError);
           // Fallback
           triggerDownload(url, filename);
         } else {
