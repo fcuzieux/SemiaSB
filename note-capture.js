@@ -146,6 +146,24 @@ function initNoteCapture() {
           triggerDownload(url, filename);
         } else {
           alert(`✅ Note sauvegardée : ${filename}`);
+
+          // --- SAUVEGARDE DANS L'HISTORIQUE ---
+          const thumbnail = captures.length > 0 ? captures[0].image : ''; // Utiliser la 1ère capture comme miniature
+          const noteData = {
+            id: Date.now(),
+            type: 'note',
+            title: title,
+            date: new Date().toISOString(),
+            filename: downloadOptions.filename, // Chemin relatif ou nom de fichier
+            thumbnail: thumbnail
+          };
+
+          chrome.storage.local.get(['savedNotes'], (result) => {
+            const notes = result.savedNotes || [];
+            notes.push(noteData);
+            chrome.storage.local.set({ savedNotes: notes });
+          });
+          // -------------------------------------
         }
         URL.revokeObjectURL(url);
       });
