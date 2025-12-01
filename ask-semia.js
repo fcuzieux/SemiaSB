@@ -1,4 +1,3 @@
-import OpenAI from 'openai'
 // ===== FONCTION MODULAIRE : ANALYSE IA DE PAGE =====
 
 function initAIFunction() {
@@ -116,25 +115,7 @@ function initAIFunction() {
 
     // Appel SEMIA
     async function callSemiaAI(apiKey, model, context, prompt) {
-        const semia = new OpenAI({
-            apiKey: apiKey,
-            baseURL: 'http://semia:8080/api',
-        });
-        const response = await semia.chat.completions.create({
-            model: model,
-            messages: [
-                { role: "system", content: "Tu es un assistant utile qui analyse le contenu d'une page web fourni." },
-                { role: "user", content: `Voici le contenu de la page :\n\n${context}\n\nQuestion : ${prompt}` }
-            ]
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'Erreur API OpenAI-SEMIA');
-        return data.choices[0].message.content;
-    }
-
-    // Appel OpenAI
-    async function callOpenAI(apiKey, model, context, prompt) {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const response = await fetch('http://semia:8080/api/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -150,7 +131,7 @@ function initAIFunction() {
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'Erreur API OpenAI-SEMIA');
+        if (!response.ok) throw new Error(data.error?.message || 'Erreur API SEMIA');
         return data.choices[0].message.content;
     }
 
