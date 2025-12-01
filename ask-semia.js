@@ -1,11 +1,16 @@
 // ===== FONCTION MODULAIRE : ANALYSE IA DE PAGE =====
-
+// Fonction principale d'initialisation de l'IA
 function initAIFunction() {
     const scrapeBtn = document.getElementById('ai-scrape-btn');
     const questionInput = document.getElementById('ai-question');
     const analyzeBtn = document.getElementById('ai-analyze-btn');
     const answerDiv = document.getElementById('ai-answer');
     const statusDiv = document.getElementById('ai-status');
+    const aiTranslateBtn = document.getElementById('ai-translate-btn');
+    const aiTextToTranslate = document.getElementById('ai-text-to-translate');
+    const aiTranslation = document.getElementById('ai-translation');
+    const aiTargetLanguage = document.getElementById('ai-target-language');
+    const aiSourceLanguage = document.getElementById('ai-source-language');
 
     let pageContent = '';
 
@@ -121,13 +126,15 @@ function initAIFunction() {
     });
     // --------------------------------------
 
-    function showStatus(message, isError = false) {
+    function showStatus(msg, isError = false) {
         if (!statusDiv) return;
-        statusDiv.textContent = message;
+        statusDiv.textContent = msg;
         statusDiv.style.background = isError ? '#fee2e2' : '#dcfce7';
         statusDiv.style.color = isError ? '#991b1b' : '#166534';
         statusDiv.style.display = 'block';
-        setTimeout(() => statusDiv.style.display = 'none', 4000);
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
     }
 
     // Fonction injectée pour lire le contenu
@@ -139,7 +146,10 @@ function initAIFunction() {
     async function scrapePage() {
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (!tab) return;
+            if (!tab) {
+                showStatus("Aucun onglet actif", true);
+                return;
+            }
 
             // Vérifier si on peut scripter cette page
             if (tab.url.startsWith('chrome://')) {
@@ -147,6 +157,7 @@ function initAIFunction() {
                 return;
             }
 
+            // Injecter un script pour récupérer le texte
             const results = await chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: getPageText
@@ -203,14 +214,17 @@ function initAIFunction() {
         try {
             let answer = '';
 
+            const systemrole = `Tu es un assistant utile qui analyse le contenu d'une page web fourni.`;
+            const userrole = `Voici le contenu de la page :\n\n${pageContent}\n\nQuestion :`;
+
             if (provider === 'semia') {
-                answer = await callSemiaAI(settings.apiKey, settings.model || 'gpt-oss:120b', pageContent, question);
+                answer = await callSemiaAI(settings.apiKey, settings.model || 'gpt-oss:120b', systemrole, userrole, question);
             } else if (provider === 'mistral') {
-                answer = await callMistral(settings.apiKey, settings.model || 'mistral', pageContent, question);
+                answer = await callMistral(settings.apiKey, settings.model || 'open-mistral-nemo', systemrole, userrole, question);
             } else if (provider === 'openai') {
-                answer = await callOpenAI(settings.apiKey, settings.model || 'gpt-4o-mini', pageContent, question);
+                answer = await callOpenAI(settings.apiKey, settings.model || 'gpt-4o-mini', systemrole, userrole, question);
             } else if (provider === 'gemini') {
-                answer = await callGemini(settings.apiKey, settings.model || 'gemini-1.5-flash', pageContent, question);
+                answer = await callGemini(settings.apiKey, settings.model || 'gemini-1.5-flash', systemrole, userrole, question);
             } else if (provider === 'anthropic') {
                 answer = "L'intégration Anthropic arrive bientôt.";
             } else {
@@ -232,8 +246,91 @@ function initAIFunction() {
         }
     }
 
+
+    // 3. Traduire avec l'IA
+    async function translateText() {
+        const textToTranslate = aiTextToTranslate?.value.trim();
+        if (!textToTranslate) {
+            showStatus("Veuillez d'abord entrer le texte", true);
+            return;
+        }
+        if (!aiTargetLanguage) {
+            showStatus("Veuillez d'abord sélectionner la langue cible", true);
+            return;
+        }
+        if (!aiSourceLanguage) {
+            showStatus("Veuillez d'abord sélectionner la langue source", true);
+            return;
+        }
+
+        // Récupérer les paramètres
+        const result = await chrome.storage.local.get(['aiProvider']);
+        const provider = result.aiProvider || 'semia';
+        const storageKey = `ai_${provider}`;
+        const providerSettings = await chrome.storage.local.get([storageKey]);
+        const settings = providerSettings[storageKey] || {};
+
+        if (!settings.apiKey) {
+            showStatus("❌ Clé API manquante (voir Paramètres)", true);
+            return;
+        }
+        const systemrole = `Tu es un assistant utile qui traduit le texte fourni.`;
+        const userrole = `Traduis le texte suivant de ${aiSourceLanguage.toUpperCase()} vers ${aiTargetLanguage.toUpperCase()} en appliquant une équivalence dynamique (adaptation naturelle du sens et du contexte culturel, sans littéralisme).
+Respecte ces contraintes :
+
+Ton neutre : Évite les biais émotionnels ou stylistiques, privilégie la clarté et la précision.
+Complexité experte : Utilise un registre technique ou spécialisé si nécessaire, mais reste accessible à un public averti.
+Longueur standard : Conserve la concision du texte original sans ajouter ni omettre dinformations essentielles.
+Fidélité sémantique : Transmets les nuances, les sous-entendus et les références culturelles avec des équivalents adaptés à ${aiTargetLanguage.toUpperCase()}.
+Cohérence terminologique : Si le texte contient des termes techniques, utilise les équivalents standardisés dans ${aiTargetLanguage.toUpperCase()} (précise si un glossaire est disponible).
+Exemple de style attendu :
+
+Pour un texte juridique : termes précis, structure logique.
+Pour un texte scientifique : rigueur terminologique, phrases fluides.
+Pour un texte littéraire : adaptation des images et des rythmes, sans perte de profondeur.
+Texte à traduire :`;
+
+        if (aiTranslateBtn) {
+            aiTranslateBtn.textContent = 'Traduction en cours...';
+            aiTranslateBtn.disabled = true;
+        }
+        if (aiTranslation) aiTranslation.innerHTML = '<em style="color:#666">Traduction en cours...</em>';
+
+        try {
+            let answer = '';
+
+            if (provider === 'semia') {
+                answer = await callSemiaAI(settings.apiKey, settings.model || 'gpt-oss:120b', systemrole, userrole, textToTranslate);
+            } else if (provider === 'mistral') {
+                answer = await callMistral(settings.apiKey, settings.model || 'open-mistral-nemo', systemrole, userrole, textToTranslate);
+            } else if (provider === 'openai') {
+                answer = await callOpenAI(settings.apiKey, settings.model || 'gpt-4o-mini', systemrole, userrole, textToTranslate);
+            } else if (provider === 'gemini') {
+                answer = await callGemini(settings.apiKey, settings.model || 'gemini-1.5-flash', systemrole, userrole, textToTranslate);
+            } else if (provider === 'anthropic') {
+                answer = "L'intégration Anthropic arrive bientôt.";
+            } else {
+                answer = "Fournisseur non supporté.";
+            }
+
+            if (aiTranslation) aiTranslation.innerHTML = `<strong>🤖 Réponse :</strong><br>${formatText(answer)}`;
+            showStatus("Analyse terminée !");
+
+        } catch (error) {
+            console.error(error);
+            if (aiTranslation) aiTranslation.innerHTML = `<strong style="color:red">Erreur:</strong> ${error.message}`;
+            showStatus("Erreur lors de l'analyse", true);
+        } finally {
+            if (aiTranslateBtn) {
+                aiTranslateBtn.textContent = '✨ Traduire avec IA';
+                aiTranslateBtn.disabled = false;
+            }
+        }
+    }
+
+
     // Appel SEMIA
-    async function callSemiaAI(apiKey, model, context, prompt) {
+    async function callSemiaAI(apiKey, model, systemrole, userrole, prompt) {
         const response = await fetch('http://semia:8080/api/chat/completions', {
             method: 'POST',
             headers: {
@@ -243,8 +340,8 @@ function initAIFunction() {
             body: JSON.stringify({
                 model: model,
                 messages: [
-                    { role: "system", content: "Tu es un assistant utile qui analyse le contenu d'une page web fourni." },
-                    { role: "user", content: `Voici le contenu de la page :\n\n${context}\n\nQuestion : ${prompt}` }
+                    { role: "system", content: systemrole },
+                    { role: "user", content: `${userrole}\n\n${prompt}` }
                 ]
             })
         });
@@ -255,7 +352,7 @@ function initAIFunction() {
     }
 
     // Appel OpenAI
-    async function callOpenAI(apiKey, model, context, prompt) {
+    async function callOpenAI(apiKey, model, systemrole, userrole, prompt) {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -265,9 +362,15 @@ function initAIFunction() {
             body: JSON.stringify({
                 model: model,
                 messages: [
-                    { role: "system", content: "Tu es un assistant utile qui analyse le contenu d'une page web fourni." },
-                    { role: "user", content: `Voici le contenu de la page :\n\n${context}\n\nQuestion : ${prompt}` }
-                ]
+                    {
+                        role: "system",
+                        content: `${systemrole}`
+                    },
+                    {
+                        role: "user",
+                        content: `${userrole}\n\n${prompt}`
+                    }
+                ],
             })
         });
 
@@ -281,11 +384,12 @@ function initAIFunction() {
      * Appel API Mistral AI pour analyse de page web
      * @param {string} apiKey - Clé API Mistral (https://console.mistral.ai)
      * @param {string} model - Modèle Mistral (ex: "mistral-large-latest", "mistral-small", "open-mistral-nemo")
-     * @param {string} context - Contenu scrapé de la page
+     * @param {string} systemrole - Rôle système
+     * @param {string} userrole - Rôle utilisateur
      * @param {string} prompt - Question de l'utilisateur
      * @returns {Promise<string>} Réponse de l'IA
      */
-    async function callMistral(apiKey, model, context, prompt) {
+    async function callMistral(apiKey, model, systemrole, userrole, prompt) {
         const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -297,11 +401,11 @@ function initAIFunction() {
                 messages: [
                     {
                         role: "system",
-                        content: "Tu es un assistant utile qui analyse le contenu d'une page web fourni. Réponds de manière concise et précise en français."
+                        content: `${systemrole}`
                     },
                     {
                         role: "user",
-                        content: `Voici le contenu de la page :\n\n${context}\n\nQuestion : ${prompt}`
+                        content: `${userrole}\n\n${prompt}`
                     }
                 ],
                 max_tokens: 2000,
@@ -311,27 +415,44 @@ function initAIFunction() {
 
         const data = await response.json();
         if (!response.ok) {
-            throw new Error(data.error?.message || `Erreur API Mistral: ${response.status}`);
+            throw new Error(data.error?.message || `Erreur API Mistral: ${response.status} \n${systemrole}\n${userrole}\n${prompt}`);
         }
         return data.choices[0].message.content;
     }
 
     // Appel Gemini
-    async function callGemini(apiKey, model, context, prompt) {
+    async function callGemini(apiKey, model, systemrole, userrole, prompt) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                system_instruction: {
+                    parts: [{ text: systemrole }]
+                },
                 contents: [{
-                    parts: [{ text: `Contexte (Page Web):\n${context}\n\nQuestion: ${prompt}` }]
+                    role: "user",
+                    parts: [{ text: `${userrole}\n\n${prompt}` }]
                 }]
             })
         });
 
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message || 'Erreur API Gemini');
-        return data.candidates[0].content.parts[0].text;
+        if (!response.ok) {
+            throw new Error(data.error?.message || `Erreur API Gemini: ${response.status}`);
+        }
+
+        // Vérifier si la réponse contient du contenu
+        if (!data.candidates || data.candidates.length === 0) {
+            throw new Error("Gemini n'a pas retourné de réponse. Le contenu a peut-être été filtré.");
+        }
+
+        const candidate = data.candidates[0];
+        if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0) {
+            throw new Error("Réponse vide de Gemini. Le contenu a peut-être été filtré pour des raisons de sécurité.");
+        }
+
+        return candidate.content.parts[0].text;
     }
 
     // Formatage simple (Markdown basic -> HTML)
@@ -344,6 +465,7 @@ function initAIFunction() {
     // Events
     if (scrapeBtn) scrapeBtn.addEventListener('click', scrapePage);
     if (analyzeBtn) analyzeBtn.addEventListener('click', analyzePage);
+    if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', translateText);
 
     if (questionInput) {
         questionInput.addEventListener('keydown', (e) => {
@@ -352,4 +474,95 @@ function initAIFunction() {
             }
         });
     }
+
+    // Initialiser la navigation aussi ici pour être sûr
+    if (typeof initAIToolsNavigation === 'function') {
+        initAIToolsNavigation();
+    }
 }
+
+// Initialisation de la navigation des outils IA
+function initAIToolsNavigation() {
+    console.log("Initialisation navigation outils IA...");
+
+    const toolCards = document.querySelectorAll('.tool-card[data-target]');
+    const toolsGrid = document.querySelector('.tools-grid');
+    const mainToolsView = toolsGrid ? toolsGrid.closest('.view-content') : null;
+
+    // Liste explicite des sous-vues pour être sûr
+    const subViewIds = ['view-Ask-Webpage', 'view-Chat-IA', 'view-Translation-IA', 'view-Ecrire-IA'];
+
+    // Masquer les sous-vues au démarrage
+    subViewIds.forEach(id => {
+        const view = document.getElementById(id);
+        if (view) view.style.display = 'none';
+    });
+
+    if (mainToolsView) {
+        mainToolsView.style.display = 'block';
+    }
+
+    // Fonction pour afficher une vue spécifique
+    function showView(targetId) {
+        // Cacher le menu principal
+        if (mainToolsView) mainToolsView.style.display = 'none';
+
+        // Cacher toutes les sous-vues
+        subViewIds.forEach(id => {
+            const view = document.getElementById(id);
+            if (view) view.style.display = 'none';
+        });
+
+        // Afficher la vue cible
+        const targetView = document.getElementById(targetId);
+        if (targetView) {
+            targetView.style.display = 'block';
+
+            // Ajouter un bouton retour si pas déjà présent
+            if (!targetView.querySelector('.back-btn')) {
+                const backBtn = document.createElement('button');
+                backBtn.className = 'back-btn';
+                backBtn.innerHTML = '← Retour aux outils';
+                backBtn.style.marginBottom = '15px';
+                backBtn.style.background = 'none';
+                backBtn.style.border = 'none';
+                backBtn.style.color = 'var(--primary-color)';
+                backBtn.style.cursor = 'pointer';
+                backBtn.style.padding = '0';
+                backBtn.style.fontSize = '14px';
+                backBtn.style.fontWeight = 'bold';
+
+                backBtn.onclick = () => {
+                    targetView.style.display = 'none';
+                    if (mainToolsView) mainToolsView.style.display = 'block';
+                };
+
+                targetView.insertBefore(backBtn, targetView.firstChild);
+            }
+        }
+    }
+
+    // Attacher les événements aux cartes
+    toolCards.forEach(card => {
+        // Cloner le noeud pour supprimer les anciens event listeners si on ré-initialise
+        const newCard = card.cloneNode(true);
+        card.parentNode.replaceChild(newCard, card);
+
+        newCard.addEventListener('click', () => {
+            const targetId = newCard.getAttribute('data-target');
+            if (targetId) {
+                showView(targetId);
+            }
+        });
+    });
+}
+
+// Appeler l'initialisation
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAIToolsNavigation);
+} else {
+    initAIToolsNavigation();
+}
+
+// Exposer globalement
+window.initAIToolsNavigation = initAIToolsNavigation;

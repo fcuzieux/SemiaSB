@@ -26,6 +26,11 @@ function initNavigation() {
       if (targetView === 'folder') {
         initFolderView();
       }
+
+      // Réinitialiser la vue Ask-Semia (retour au menu outils)
+      if (targetView === 'Ask-Semia' && typeof initAIToolsNavigation === 'function') {
+        initAIToolsNavigation();
+      }
     });
   });
 }

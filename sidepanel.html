@@ -98,8 +98,6 @@
         </div>
       </div>
 
-
-
       <!-- Vue: Folder -->
       <div id="view-folder" class="view-container">
 
@@ -128,11 +126,45 @@
       <div id="view-Ask-Semia" class="view-container">
         <div class="view-header">
           <h3>🧠 Ask an IA</h3>
-          <p class="view-description">Analyse IA de la page active</p>
+          <p class="view-description">Toujours à votre service, mais il faut quand même penser à paramétrer vos IA 😉
+          </p>
         </div>
+
+        <!-- Menu principal des outils IA -->
         <div class="view-content">
-          <p class="view-description">Analyse IA de la page active</p>
-          <br>
+          <h2><i data-lucide="wrench"></i> Outils IA</h2>
+          <div class="tools-grid">
+            <div class="tool-card" data-target="view-Ask-Webpage" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="scan-search"></i></div>
+              <div class="tool-info">
+                <h3>Analyse IA de la page active</h3>
+              </div>
+              <span class="hot-badge">🔥</span>
+            </div>
+            <div class="tool-card" data-target="view-Chat-IA" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="message-circle-code"></i></div>
+              <div class="tool-info">
+                <h3>Chat IA</h3>
+              </div>
+            </div>
+            <div class="tool-card" data-target="view-Translation-IA" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="languages"></i></div>
+              <div class="tool-info">
+                <h3>Traduction IA</h3>
+              </div>
+            </div>
+            <div class="tool-card" data-target="view-Ecrire-IA" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="pencil"></i></div>
+              <div class="tool-info">
+                <h3>Écrire-Répondre IA</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sous-vue: Analyse de page -->
+        <div id="view-Ask-Webpage" class="view-content" style="display: none;">
+          <h3><i data-lucide="scan-search" style="color: #8b5cf6;"></i> Analyse IA de la page active</h3>
           <p class="view-description">📄 Lire la page pour vérifier que l'IA comprend bien le contexte</p>
           <br>
           <p class="view-description">✨ Questionner l'IA</p>
@@ -156,6 +188,51 @@
           </div>
 
           <div id="ai-answer" style="margin-top: 20px; line-height: 1.6; font-size: 14px;"></div>
+        </div>
+
+        <!-- Sous-vue: Chat IA -->
+        <div id="view-Chat-IA" class="view-content" style="display: none;">
+          <h3>Chat IA</h3>
+          <p>Cette fonctionnalité arrive bientôt...</p>
+        </div>
+
+        <!-- Sous-vue: Traduction IA -->
+        <div id="view-Translation-IA" class="view-content" style="display: none;">
+          <h3><i data-lucide="languages" style="color: #8b5cf6;"></i> Traduction IA</h3>
+          <p>Demander à l'IA de traduire une phrase ou un texte</p>
+
+
+          <label>
+            Langue d'origine
+            <select id="ai-source-language">
+              <option value="auto">Détection automatique</option>
+              <option value="fr">Français</option>
+              <option value="en">Anglais</option>
+              <option value="de">Allemand</option>
+              <option value="es">Espagnol</option>
+              <option value="it">Italien</option>
+            </select>
+            <span>vers</span>
+            <select id="ai-target-language">
+              <option value="fr">Français</option>
+              <option value="en">Anglais</option>
+              <option value="de">Allemand</option>
+              <option value="es">Espagnol</option>
+              <option value="it">Italien</option>
+            </select>
+          </label>
+
+          <textarea id="ai-text-to-translate"
+            placeholder="Ex: Ce n\'est pas l\'IA qui pense trop, c\'est nous qui pensons trop peu à ce qu\'elle pourrait devenir...."
+            style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;"></textarea>
+          <button id="ai-translate-btn">Traduire</button>
+          <div id="ai-translation" style="margin-top: 20px; line-height: 1.6; font-size: 14px;"></div>
+        </div>
+
+        <!-- Sous-vue: Écrire IA -->
+        <div id="view-Ecrire-IA" class="view-content" style="display: none;">
+          <h3>Écrire/Répondre avec l'IA</h3>
+          <p>Cette fonctionnalité arrive bientôt...</p>
         </div>
       </div>
 
