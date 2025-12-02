@@ -7,6 +7,7 @@ function initAIFunction() {
     const answerDiv = document.getElementById('ai-answer');
     const statusDiv = document.getElementById('ai-status');
     const aiTranslateBtn = document.getElementById('ai-translate-btn');
+    const aiDictionaryBtn = document.getElementById('ai-dictionary-btn');
     const aiTextToTranslate = document.getElementById('ai-text-to-translate');
     const aiTranslation = document.getElementById('ai-translation');
     const aiTargetLanguage = document.getElementById('ai-target-language');
@@ -248,7 +249,7 @@ function initAIFunction() {
 
 
     // 3. Traduire avec l'IA
-    async function translateText() {
+    async function translateText(tranlationNOTdictionary) {
         const textToTranslate = aiTextToTranslate?.value.trim();
         if (!textToTranslate) {
             showStatus("Veuillez d'abord entrer le texte", true);
@@ -275,25 +276,42 @@ function initAIFunction() {
             return;
         }
         const systemrole = `Tu es un assistant utile qui traduit le texte fourni.`;
-        const userrole = `Traduis le texte suivant de ${aiSourceLanguage.toUpperCase()} vers ${aiTargetLanguage.toUpperCase()} en appliquant une équivalence dynamique (adaptation naturelle du sens et du contexte culturel, sans littéralisme).
-Respecte ces contraintes :
+        let userrole = ``;
+        if (tranlationNOTdictionary) {
+            userrole = `Traduis le texte suivant de ${aiSourceLanguage.value} vers ${aiTargetLanguage.value} en appliquant une équivalence dynamique (adaptation naturelle du sens et du contexte culturel, sans littéralisme).
+            Respecte ces contraintes :
 
-Ton neutre : Évite les biais émotionnels ou stylistiques, privilégie la clarté et la précision.
-Complexité experte : Utilise un registre technique ou spécialisé si nécessaire, mais reste accessible à un public averti.
-Longueur standard : Conserve la concision du texte original sans ajouter ni omettre dinformations essentielles.
-Fidélité sémantique : Transmets les nuances, les sous-entendus et les références culturelles avec des équivalents adaptés à ${aiTargetLanguage.toUpperCase()}.
-Cohérence terminologique : Si le texte contient des termes techniques, utilise les équivalents standardisés dans ${aiTargetLanguage.toUpperCase()} (précise si un glossaire est disponible).
-Exemple de style attendu :
+            Ton neutre : Évite les biais émotionnels ou stylistiques, privilégie la clarté et la précision.
+            Complexité experte : Utilise un registre technique ou spécialisé si nécessaire, mais reste accessible à un public averti.
+        Longueur standard : Conserve la concision du texte original sans ajouter ni omettre dinformations essentielles.
+        Fidélité sémantique : Transmets les nuances, les sous-entendus et les références culturelles avec des équivalents adaptés à ${aiTargetLanguage.value}.
+        Cohérence terminologique : Si le texte contient des termes techniques, utilise les équivalents standardisés dans ${aiTargetLanguage.value} (précise si un glossaire est disponible).
+        Exemple de style attendu :
 
-Pour un texte juridique : termes précis, structure logique.
-Pour un texte scientifique : rigueur terminologique, phrases fluides.
-Pour un texte littéraire : adaptation des images et des rythmes, sans perte de profondeur.
-Texte à traduire :`;
+        Pour un texte juridique : termes précis, structure logique.
+        Pour un texte scientifique : rigueur terminologique, phrases fluides.
+        Pour un texte littéraire : adaptation des images et des rythmes, sans perte de profondeur.
+        Texte à traduire :`;
+        } else {
+            userrole = `Traduis les termes suivants un à un en donnant les définitions pour chacun d'entre eux de ${aiSourceLanguage.value} vers ${aiTargetLanguage.value}.
+            Respecte ces contraintes :
 
-        if (aiTranslateBtn) {
+            Ton neutre : Évite les biais émotionnels ou stylistiques, privilégie la clarté et la précision des définitions.
+            Complexité experte : Utilise un registre technique ou spécialisé si nécessaire, mais reste accessible à un public averti.
+        
+        Fidélité sémantique : Transmets les nuances, les sous-entendus et les références culturelles avec des équivalents adaptés à ${aiTargetLanguage.value}.
+        Cohérence terminologique : Si nécessaire, utilise les équivalents standardisés dans ${aiTargetLanguage.value} (précise si un glossaire est disponible).
+        Termes à traduire :`;
+        }
+
+        if (tranlationNOTdictionary && aiTranslateBtn) {
             aiTranslateBtn.textContent = 'Traduction en cours...';
             aiTranslateBtn.disabled = true;
+        } else if (!tranlationNOTdictionary && aiDictionaryBtn) {
+            aiDictionaryBtn.textContent = 'Traduction en cours...';
+            aiDictionaryBtn.disabled = true;
         }
+
         if (aiTranslation) aiTranslation.innerHTML = '<em style="color:#666">Traduction en cours...</em>';
 
         try {
@@ -321,9 +339,12 @@ Texte à traduire :`;
             if (aiTranslation) aiTranslation.innerHTML = `<strong style="color:red">Erreur:</strong> ${error.message}`;
             showStatus("Erreur lors de l'analyse", true);
         } finally {
-            if (aiTranslateBtn) {
+            if (tranlationNOTdictionary && aiTranslateBtn) {
                 aiTranslateBtn.textContent = '✨ Traduire avec IA';
                 aiTranslateBtn.disabled = false;
+            } else if (!tranlationNOTdictionary && aiDictionaryBtn) {
+                aiDictionaryBtn.textContent = '✨ Dictionnaire IA';
+                aiDictionaryBtn.disabled = false;
             }
         }
     }
@@ -465,7 +486,8 @@ Texte à traduire :`;
     // Events
     if (scrapeBtn) scrapeBtn.addEventListener('click', scrapePage);
     if (analyzeBtn) analyzeBtn.addEventListener('click', analyzePage);
-    if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', translateText);
+    if (aiTranslateBtn) aiTranslateBtn.addEventListener('click', () => translateText(true));
+    if (aiDictionaryBtn) aiDictionaryBtn.addEventListener('click', () => translateText(false));
 
     if (questionInput) {
         questionInput.addEventListener('keydown', (e) => {
