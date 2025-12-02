@@ -7,16 +7,20 @@ function getPageText() {
 
 // Scraper la page avec chrome.scripting
 async function scrapePage() {
+
+    console.log("scrapePage()...");
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab) {
-            showStatus("Aucun onglet actif", true);
+            console.log("Aucun onglet actif");
+            showStatusUtils("Aucun onglet actif", true);
             return null;
         }
 
         // Vérifier si on peut scripter cette page
         if (tab.url.startsWith('chrome://')) {
-            showStatus("Impossible de lire les pages système Chrome", true);
+            console.log("Impossible de lire les pages système Chrome");
+            showStatusUtils("Impossible de lire les pages système Chrome", true);
             return null;
         }
 
@@ -26,24 +30,29 @@ async function scrapePage() {
             func: getPageText
         });
 
+        console.log("results:", results);
         if (results && results[0] && results[0].result) {
             let pageContent = results[0].result;
+            console.log("pageContent:", pageContent);
             // Limiter la taille pour éviter de dépasser les tokens (ex: 15k chars)
             if (pageContent.length > 15000) {
                 pageContent = pageContent.substring(0, 15000) + "... [tronqué]";
             }
 
             const analyzeBtn = document.getElementById('ai-analyze-btn');
+
             if (analyzeBtn) analyzeBtn.disabled = false;
-            showStatus(`✅ Page lue (${pageContent.length} caractères)`);
+            showStatusUtils(`✅ Page lue (${pageContent.length} caractères)/15k`);
             return pageContent;
         } else {
-            showStatus("Impossible de lire le contenu", true);
+            console.log("Impossible de lire le contenu");
+            showStatusUtils("Impossible de lire le contenu", true);
             return null;
         }
     } catch (error) {
         console.error(error);
-        showStatus("Erreur de lecture (Permission?)", true);
+        console.log("Erreur de lecture (Permission?)");
+        showStatusUtils("Erreur de lecture (Permission?)", true);
         return null;
     }
 }
@@ -51,11 +60,11 @@ async function scrapePage() {
 // Analyser avec l'IA
 async function analyzePage(pageContent, question) {
     if (!pageContent) {
-        showStatus("Veuillez d'abord lire la page", true);
+        showStatusUtils("Veuillez d'abord lire la page", true);
         return null;
     }
     if (!question) {
-        showStatus("Posez une question", true);
+        showStatusUtils("Posez une question", true);
         return null;
     }
 
@@ -63,7 +72,7 @@ async function analyzePage(pageContent, question) {
     const { provider, settings } = await getProviderSettings();
 
     if (!settings.apiKey) {
-        showStatus("❌ Clé API manquante (voir Paramètres)", true);
+        showStatusUtils("❌ Clé API manquante (voir Paramètres)", true);
         return null;
     }
 
@@ -83,13 +92,13 @@ async function analyzePage(pageContent, question) {
         const answer = await callAI(provider, settings.apiKey, settings.model, systemrole, userrole, question);
 
         if (answerDiv) answerDiv.innerHTML = `<strong>🤖 Réponse :</strong><br>${formatText(answer)}`;
-        showStatus("Analyse terminée !");
+        showStatusUtils("Analyse terminée !");
         return answer;
 
     } catch (error) {
         console.error(error);
         if (answerDiv) answerDiv.innerHTML = `<strong style="color:red">Erreur:</strong> ${error.message}`;
-        showStatus("Erreur lors de l'analyse", true);
+        showStatusUtils("Erreur lors de l'analyse", true);
         return null;
     } finally {
         if (analyzeBtn) {
@@ -101,17 +110,25 @@ async function analyzePage(pageContent, question) {
 
 // Initialiser la fonction d'analyse
 function initAnalyzeFunction() {
+    console.log('initAnalyzeFunction called');
     const scrapeBtn = document.getElementById('ai-scrape-btn');
     const analyzeBtn = document.getElementById('ai-analyze-btn');
     const questionInput = document.getElementById('ai-question');
+
+    console.log('scrapeBtn:', scrapeBtn);
+    console.log('analyzeBtn:', analyzeBtn);
 
     let pageContent = '';
 
     // Event: Lire la page
     if (scrapeBtn) {
+        console.log('Adding click listener to scrapeBtn');
         scrapeBtn.addEventListener('click', async () => {
+            console.log('scrapeBtn clicked!');
             pageContent = await scrapePage();
         });
+    } else {
+        console.error('scrapeBtn not found!');
     }
 
     // Event: Analyser

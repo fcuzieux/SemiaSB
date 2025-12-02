@@ -9,7 +9,90 @@ function initAIFunction() {
 
     // Initialiser la mise à jour du titre dynamique
     initDynamicTitle();
+
+    // Initialiser la navigation entre les outils IA
+    initAIToolsNavigation();
 }
+
+// --- NAVIGATION ENTRE LES OUTILS IA ---
+function initAIToolsNavigation() {
+    console.log("Initialisation navigation outils IA...");
+
+    const toolCards = document.querySelectorAll('.tool-card[data-target]');
+    const toolsGrid = document.querySelector('.tools-grid');
+    const mainToolsView = toolsGrid ? toolsGrid.closest('.view-content') : null;
+
+    // Liste explicite des sous-vues pour être sûr
+    const subViewIds = ['view-Ask-Webpage', 'view-Chat-IA', 'view-Translation-IA', 'view-Ecrire-IA'];
+
+    // Masquer les sous-vues au démarrage
+    subViewIds.forEach(id => {
+        const view = document.getElementById(id);
+        if (view) view.style.display = 'none';
+    });
+
+    if (mainToolsView) {
+        mainToolsView.style.display = 'block';
+    }
+
+    // Fonction pour afficher une vue spécifique
+    function showView(targetId) {
+        // Cacher le menu principal
+        if (mainToolsView) mainToolsView.style.display = 'none';
+
+        // Cacher toutes les sous-vues
+        subViewIds.forEach(id => {
+            const view = document.getElementById(id);
+            if (view) view.style.display = 'none';
+        });
+
+        // Afficher la vue cible
+        const targetView = document.getElementById(targetId);
+        if (targetView) {
+            targetView.style.display = 'block';
+
+            // Ajouter un bouton retour si pas déjà présent
+            if (!targetView.querySelector('.back-btn')) {
+                const backBtn = document.createElement('button');
+                backBtn.className = 'back-btn';
+                backBtn.innerHTML = '← Retour aux outils';
+                backBtn.style.marginBottom = '15px';
+                backBtn.style.background = 'none';
+                backBtn.style.border = 'none';
+                backBtn.style.color = 'var(--primary-color)';
+                backBtn.style.cursor = 'pointer';
+                backBtn.style.padding = '0';
+                backBtn.style.fontSize = '14px';
+                backBtn.style.fontWeight = 'bold';
+
+                backBtn.onclick = () => {
+                    targetView.style.display = 'none';
+                    if (mainToolsView) mainToolsView.style.display = 'block';
+                };
+
+                targetView.insertBefore(backBtn, targetView.firstChild);
+            }
+        }
+    }
+
+    // Attacher les événements aux cartes
+    toolCards.forEach(card => {
+        // Cloner le noeud pour supprimer les anciens event listeners si on ré-initialise
+        const newCard = card.cloneNode(true);
+        card.parentNode.replaceChild(newCard, card);
+
+        newCard.addEventListener('click', () => {
+            const targetId = newCard.getAttribute('data-target');
+            if (targetId) {
+                showView(targetId);
+            }
+        });
+    });
+}
+
+// Exposer globalement pour que sidepanel.js puisse l'appeler
+window.initAIToolsNavigation = initAIToolsNavigation;
+
 
 // --- MISE À JOUR DU TITRE DYNAMIQUE ---
 function initDynamicTitle() {

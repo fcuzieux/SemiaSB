@@ -1,16 +1,26 @@
 // ===== UTILITAIRES COMMUNS POUR LES FONCTIONS IA =====
 
 // Afficher un message de statut
-function showStatus(msg, isError = false) {
+function showStatusUtils(msg, isError = false) {
     const statusDiv = document.getElementById('ai-status');
+    console.log('showStatusUtils called:', msg, 'statusDiv found:', !!statusDiv);
     if (!statusDiv) return;
+
     statusDiv.textContent = msg;
     statusDiv.style.background = isError ? '#fee2e2' : '#dcfce7';
     statusDiv.style.color = isError ? '#991b1b' : '#166534';
+    statusDiv.style.border = `1px solid ${isError ? '#fca5a5' : '#86efac'}`;
     statusDiv.style.display = 'block';
-    setTimeout(() => {
-        statusDiv.style.display = 'none';
-    }, 5000);
+    statusDiv.style.padding = '8px';
+    statusDiv.style.borderRadius = '6px';
+    statusDiv.style.fontSize = '12px';
+    statusDiv.style.marginTop = '8px';
+    if (isError) {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+
 }
 
 // Formatage simple (Markdown basic -> HTML)
@@ -42,3 +52,9 @@ async function getProviderSettings() {
 
     return { provider, settings };
 }
+
+// Exposer les fonctions globalement pour qu'elles soient accessibles entre les fichiers
+window.showStatusUtils = showStatusUtils;
+window.formatText = formatText;
+window.checkProviderReady = checkProviderReady;
+window.getProviderSettings = getProviderSettings;

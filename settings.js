@@ -39,7 +39,7 @@ function initSettings() {
             'semia': 'gpt-oss:120b',
             'mistral': 'open-mistral-nemo',
             'openai': 'gpt-4o-mini',
-            'gemini': 'gemini-1.5-flash',
+            'gemini': 'gemini-2.5-flash',
             'anthropic': 'claude-3-5-sonnet-20241022'
         };
         modelInput.placeholder = placeholders[provider] || 'Modèle par défaut';

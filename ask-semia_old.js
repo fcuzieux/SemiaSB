@@ -145,6 +145,8 @@ function initAIFunction() {
 
     // 1. Scraper la page avec chrome.scripting
     async function scrapePage() {
+
+        console.log("scrapePage()...");
         try {
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             if (!tab) {

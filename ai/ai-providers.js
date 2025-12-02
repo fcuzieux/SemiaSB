@@ -126,10 +126,17 @@ async function callAI(provider, apiKey, model, systemrole, userrole, prompt) {
     } else if (provider === 'openai') {
         return await callOpenAI(apiKey, model || 'gpt-4o-mini', systemrole, userrole, prompt);
     } else if (provider === 'gemini') {
-        return await callGemini(apiKey, model || 'gemini-1.5-flash', systemrole, userrole, prompt);
+        return await callGemini(apiKey, model || 'gemini-2.5-flash', systemrole, userrole, prompt);
     } else if (provider === 'anthropic') {
         throw new Error("L'intégration Anthropic arrive bientôt.");
     } else {
         throw new Error("Fournisseur non supporté.");
     }
 }
+
+// Exposer les fonctions globalement
+window.callAI = callAI;
+window.callSemiaAI = callSemiaAI;
+window.callOpenAI = callOpenAI;
+window.callMistral = callMistral;
+window.callGemini = callGemini;
