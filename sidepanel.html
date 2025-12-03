@@ -84,23 +84,70 @@
         <div class="view-content">
           <p class="view-description">📸 Capturer une nouvelle note</p>
           <br>
-          <p class="view-description">Indiquer le titre de la note, puis cliquer sur "📸 Capturer"</p>
+          <p class="view-description">Indiquer le titre de la note, puis cliquer sur "📸 Capturer" pour lancer une
+            nouvelle note 😁</p>
           <br>
           <label>
             Titre de la Note
-            <input type="text" id="noteTitle" placeholder="Mon document..."
-              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
           </label>
+          <input type="text" id="noteTitle" placeholder="Titre de ma note..."
+            style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+
+          <label>
+            Introduction de la Note
+          </label>
+          <div class="toolbar">
+            <button data-action="bold">B</button>
+            <button data-action="italic"><em>I</em></button>
+            <button data-action="underline"><u>U</u></button>
+
+            <button data-action="text-color" data-color="#e11d48">A</button>
+            <button data-action="bg-color" data-color="#facc15">A</button>
+
+            <!-- <button data-action="font-bigger">A+</button>
+              <button data-action="font-smaller">A-</button> -->
+          </div>
+          <div class="editor" id="noteIntro" contenteditable="true"
+            style="border:1px solid #ccc; min-height:120px; padding:8px;">
+            Réunion capturée avec SemiaSB by LID...
+          </div>
 
           <!-- Liste des captures -->
           <div id="capturesList"></div>
 
-          <!-- Bouton d'export -->
+
+          <!-- <div class="row" id="exportRow" style="display: none;">
+            <label>
+              Conclusion de la Note
+              <textarea id="noteConclusion" placeholder="Ex: Conclusion de la réunion...Actions à entreprendre..."
+                style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            </textarea>
+            </label> -->
           <div class="row" id="exportRow" style="display: none;">
+            <label>
+              Conclusion de la Note
+            </label>
+            <div class="toolbar">
+              <button data-action="bold">B</button>
+              <button data-action="italic"><em>I</em></button>
+              <button data-action="underline"><u>U</u></button>
+
+              <button data-action="text-color" data-color="#e11d48">A</button>
+              <button data-action="bg-color" data-color="#facc15">A</button>
+
+              <!-- <button data-action="font-bigger">A+</button>
+              <button data-action="font-smaller">A-</button> -->
+            </div>
+            <div class="editor" id="noteConclusion" contenteditable="true"
+              style="border:1px solid #ccc; min-height:120px; padding:8px;">
+              Réunion capturée avec SemiaSB by LID...
+            </div>
+            <!-- Bouton d'export -->
             <button id="exportNote" class="export-btn">💾 Enregistrer la note</button>
           </div>
         </div>
       </div>
+
 
       <!-- Vue: Folder -->
       <div id="view-folder" class="view-container">
@@ -178,7 +225,8 @@
               style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">📄 Lire la
               page</button>
             <div id="ai-status"
-              style="display:none; margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px;"></div>
+              style="display:none; margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px;">
+            </div>
           </div>
 
           <div style="margin-top: 16px;">
@@ -198,9 +246,10 @@
         <div id="view-Chat-IA" class="view-content" style="display: none;">
           <h3><i data-lucide="message-circle-code" style="color: #8b5cf6;"></i> Salut,
             Comment puis-je vous aider aujourd'hui ?</h3>
-          <p>Cette fonctionnalité arrive bientôt...</p>
+          <p>💬 Discutez avec l'IA. L'historique de conversation est conservé pour un contexte continu. (Ctrl+Entrée
+            pour envoyer)</p>
           <div style="position:relative;">
-            <textarea id="ai-question" placeholder="Ex: Résume cette page en 3 points..." style="width:100%; min-height:80px; padding:10px 40px 10px 10px;
+            <textarea id="ai-text-to-chat" placeholder="Ex: Que peux-tu faire pour moi aujourd'hui ?" style="width:100%; min-height:80px; padding:10px 40px 10px 10px;
                    border:1px solid var(--border-color);
                    border-radius:var(--radius); resize:vertical;"></textarea>
 
@@ -211,8 +260,13 @@
             </button>
           </div>
           <div class="row">
-            <button id="ai-chat-improvetext-btn" disabled>✨ Améliorer l'écriture avec IA</button>
+            <button id="ai-clear-history-btn"
+              style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">🗑️ Effacer
+              l'historique</button>
           </div>
+
+          <div id="ai-answer-chat"
+            style="margin-top: 20px; line-height: 1.6; font-size: 14px; max-height: 400px; overflow-y: auto;"></div>
         </div>
 
         <!-- Sous-vue: Traduction IA -->
@@ -322,10 +376,12 @@
   <script src="ai/ai-providers.js"></script>
   <script src="ai/ai-analyze.js"></script>
   <script src="ai/ai-translate.js"></script>
+  <script src="ai/ai-chat.js"></script>
   <script src="ask-semia-new.js"></script>
 
   <script src="sidepanel.js"></script>
   <script src="folder-view.js"></script>
+  <script src="editor.js"></script>
 </body>
 
 </html>

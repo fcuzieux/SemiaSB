@@ -485,3 +485,114 @@ video {
     color: #ff5722;
     margin-left: auto;
 }
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f5f5f7, #e8ecf5);
+    box-shadow:
+        0 8px 16px rgba(15, 23, 42, 0.08),
+        0 0 0 1px rgba(148, 163, 184, 0.25);
+    width: fit-content;
+    max-width: 100%;
+    margin-bottom: 4px;
+}
+
+.toolbar button {
+    border: none;
+    background: transparent;
+    color: #1f2933;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.05s ease;
+}
+
+.toolbar button:hover {
+    background: rgba(15, 23, 42, 0.04);
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.5);
+}
+
+.toolbar button:active {
+    transform: translateY(1px);
+    box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.7);
+}
+
+.toolbar button[aria-pressed="true"] {
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow:
+        0 4px 10px rgba(37, 99, 235, 0.4),
+        0 0 0 1px rgba(15, 23, 42, 0.2);
+}
+
+/* B, I, U plus “texte” */
+.toolbar button[data-action="bold"] strong {
+    font-weight: 700;
+}
+
+.toolbar button[data-action="italic"] em {
+    font-style: italic;
+}
+
+.toolbar button[data-action="underline"] u {
+    text-decoration: underline;
+}
+
+/* Boutons couleur texte */
+.toolbar button[data-action="text-color"] {
+    position: relative;
+    font-weight: 600;
+}
+
+/* petit rond de couleur basé sur data-color */
+.toolbar button[data-action="text-color"]::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    margin-left: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    background-color: currentColor;
+    /* on va changer la couleur du texte */
+}
+
+/* variante rouge par ex. */
+.toolbar button[data-action="text-color"][data-color="#e11d48"] {
+    color: #e11d48;
+}
+
+/* Bouton surlignage */
+.toolbar button[data-action="bg-color"] {
+    font-weight: 600;
+}
+
+/* fond jaune en fonction de la couleur */
+.toolbar button[data-action="bg-color"][data-color="#facc15"] {
+    background: #facc15;
+    color: #1f2933;
+}
+
+/* A+ / A- taille */
+.toolbar button[data-action="font-bigger"] {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.toolbar button[data-action="font-smaller"] {
+    font-size: 11px;
+    opacity: 0.8;
+}

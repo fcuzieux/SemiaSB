@@ -8,6 +8,8 @@ function initNoteCapture() {
   const exportBtn = document.getElementById('exportNote');
   const exportRow = document.getElementById('exportRow');
   const noteTitleInput = document.getElementById('noteTitle');
+  const noteIntroInput = document.getElementById('noteIntro');
+  const noteConclusionInput = document.getElementById('noteConclusion');
 
   // Capturer une capture d'écran
   captureBtn?.addEventListener('click', async () => {
@@ -105,12 +107,16 @@ function initNoteCapture() {
 
     // Récupérer le titre
     let title = noteTitleInput.value.trim();
+    // Récupérer l'introduction
+    let intro = noteIntroInput.innerHTML;// noteIntroInput.value.trim();
+    // Récupérer la conclusion
+    let conclusion = noteConclusionInput.innerHTML;// noteConclusionInput.value.trim();
     if (!title) {
       title = "Note Capture";
     }
 
     // Générer le HTML
-    const htmlContent = generateHTML(title);
+    const htmlContent = generateHTML(title, intro, conclusion);
 
     // Créer un blob et télécharger
     const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -174,7 +180,7 @@ function initNoteCapture() {
   });
 
   // Générer le HTML pour l'export
-  function generateHTML(title) {
+  function generateHTML(title, intro, conclusion) {
     const capturesHTML = captures.map((capture, index) => `
       <div class="capture-block">
         <h2>Capture ${index + 1}</h2>
@@ -277,7 +283,15 @@ function initNoteCapture() {
     <h1>📝 Note Capture</h1>
     <p class="date">Créé le ${new Date().toLocaleString('fr-FR')}</p>
     <h1>${title}</h1>
+    <div class="note">
+      <h3>Introduction :</h3>
+      <p>${intro || '<em>Aucune note</em>'}</p>
+    </div>
     ${capturesHTML}
+    <div class="note">
+      <h3>Conclusion :</h3>
+      <p>${conclusion || '<em>Aucune note</em>'}</p>
+    </div>
   </div>
 </body>
 </html>`;

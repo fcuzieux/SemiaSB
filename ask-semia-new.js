@@ -6,6 +6,7 @@ function initAIFunction() {
     // Initialiser les différentes fonctions IA
     initAnalyzeFunction();
     initTranslateFunction();
+    initChatFunction();
 
     // Initialiser la mise à jour du titre dynamique
     initDynamicTitle();
