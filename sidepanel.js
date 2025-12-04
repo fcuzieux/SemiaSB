@@ -93,7 +93,14 @@ function setupMediaRecorder(stream) {
   mediaRecorder.onstop = async () => {
     const blob = new Blob(recordedChunks, { type: "video/webm" });
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
-    const filename = `capture-onglet-${timestamp}.webm`;
+
+    // Récupérer le titre de la vidéo et nettoyer les caractères invalides
+    const videoTitleInput = document.getElementById('videoTitle');
+    let videoTitle = videoTitleInput?.value.trim() || 'Capture-video';
+    // Remplacer les caractères invalides pour un nom de fichier
+    videoTitle = videoTitle.replace(/[<>:"/\\|?*]/g, '-');
+
+    const filename = `${videoTitle}-${timestamp}.webm`;
     const url = URL.createObjectURL(blob);
 
     // Créer un fichier JSON avec les métadonnées des chapitres
