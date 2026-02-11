@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Audio - Page de Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        audio {
+            width: 100%;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎵 Page de Test Audio pour SemiaSB</h1>
+
+        <div class="info">
+            <h3>📋 Instructions</h3>
+            <p>Cette page permet de tester la capture audio de SemiaSB :</p>
+            <ol>
+                <li>Cliquez sur "Jouer un son test" ci-dessous</li>
+                <li>Ouvrez capture.html dans un autre onglet</li>
+                <li>Cochez "Capturer l'audio"</li>
+                <li>Cliquez sur "Démarrer"</li>
+                <li><strong>IMPORTANT : Cochez "Partager l'audio" dans la boîte de dialogue</strong></li>
+                <li>Sélectionnez cet onglet</li>
+                <li>Vérifiez que le message indique "vidéo + audio"</li>
+            </ol>
+        </div>
+
+        <div class="controls">
+            <button onclick="playBeep()">🔊 Jouer un son test (Bip)</button>
+            <button onclick="playMusic()">🎵 Jouer une mélodie</button>
+            <button onclick="speak()">🗣️ Synthèse vocale</button>
+            <button onclick="stopAll()">⏹️ Arrêter tous les sons</button>
+        </div>
+
+        <audio id="audioPlayer" controls></audio>
+
+        <div class="info">
+            <h3>ℹ️ Informations</h3>
+            <p id="status">Prêt à tester...</p>
+        </div>
+    </div>
+
+    <script>
+        const audioPlayer = document.getElementById('audioPlayer');
+        const statusEl = document.getElementById('status');
+        let audioContext = null;
+        let oscillator = null;
+
+        function updateStatus(message) {
+            statusEl.textContent = message;
+        }
+
+        function playBeep() {
+            stopAll();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = 440; // La (A4)
+            gainNode.gain.value = 0.3;
+
+            oscillator.start();
+            updateStatus('🔊 Son test en cours (440 Hz)...');
+
+            setTimeout(() => {
+                oscillator.stop();
+                updateStatus('✅ Son test terminé');
+            }, 2000);
+        }
+
+        function playMusic() {
+            stopAll();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            const notes = [
+                { freq: 261.63, duration: 0.3 }, // Do
+                { freq: 293.66, duration: 0.3 }, // Ré
+                { freq: 329.63, duration: 0.3 }, // Mi
+                { freq: 349.23, duration: 0.3 }, // Fa
+                { freq: 392.00, duration: 0.3 }, // Sol
+                { freq: 440.00, duration: 0.3 }, // La
+                { freq: 493.88, duration: 0.3 }, // Si
+                { freq: 523.25, duration: 0.5 }  // Do (octave supérieure)
+            ];
+
+            let currentTime = audioContext.currentTime;
+
+            notes.forEach((note, index) => {
+                const osc = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                osc.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                osc.frequency.value = note.freq;
+                gainNode.gain.setValueAtTime(0.3, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+
+                osc.start(currentTime);
+                osc.stop(currentTime + note.duration);
+
+                currentTime += note.duration;
+            });
+
+            updateStatus('🎵 Mélodie en cours...');
+            setTimeout(() => {
+                updateStatus('✅ Mélodie terminée');
+            }, currentTime * 1000);
+        }
+
+        function speak() {
+            stopAll();
+            const utterance = new SpeechSynthesisUtterance(
+                'Bonjour, ceci est un test de capture audio pour SemiaSB. Si vous entendez ce message dans votre enregistrement, la capture audio fonctionne correctement.'
+            );
+            utterance.lang = 'fr-FR';
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+
+            utterance.onstart = () => {
+                updateStatus('🗣️ Synthèse vocale en cours...');
+            };
+
+            utterance.onend = () => {
+                updateStatus('✅ Synthèse vocale terminée');
+            };
+
+            utterance.onerror = (event) => {
+                updateStatus('❌ Erreur de synthèse vocale : ' + event.error);
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function stopAll() {
+            // Arrêter l'oscillateur
+            if (oscillator) {
+                try {
+                    oscillator.stop();
+                } catch (e) {
+                    // Déjà arrêté
+                }
+                oscillator = null;
+            }
+
+            // Fermer le contexte audio
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            // Arrêter la synthèse vocale
+            window.speechSynthesis.cancel();
+
+            // Arrêter l'audio player
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+
+            updateStatus('⏹️ Tous les sons arrêtés');
+        }
+
+        // Nettoyer au déchargement de la page
+        window.addEventListener('beforeunload', stopAll);
+    </script>
+</body>
+
+</html>

@@ -7,6 +7,7 @@ function initAIFunction() {
     initAnalyzeFunction();
     initTranslateFunction();
     initChatFunction();
+    initPDFChat();
 
     // Initialiser la mise à jour du titre dynamique
     initDynamicTitle();
@@ -24,7 +25,7 @@ function initAIToolsNavigation() {
     const mainToolsView = toolsGrid ? toolsGrid.closest('.view-content') : null;
 
     // Liste explicite des sous-vues pour être sûr
-    const subViewIds = ['view-Ask-Webpage', 'view-Chat-IA', 'view-Translation-IA', 'view-Ecrire-IA'];
+    const subViewIds = ['view-Ask-Webpage', 'view-Chat-IA', 'view-Translation-IA', 'view-Ecrire-IA', 'view-Chat-PDF'];
 
     // Masquer les sous-vues au démarrage
     subViewIds.forEach(id => {
@@ -139,7 +140,7 @@ function initDynamicTitle() {
             `;
         }
 
-        titleElement.innerHTML = `🧠 Ask ${providerName} ${statusHTML}`;
+        titleElement.innerHTML = `<i data-lucide="sparkles"></i> Ask ${providerName} ${statusHTML}`;
         subtitleElement.innerHTML = providerRemark;
 
         // Réinitialiser les icônes Lucide

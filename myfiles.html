@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Mes Dossiers - SemiaSB</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="lucide.min.js"></script>
+    <style>
+        body {
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-color);
+            color: var(--text-main);
+            overflow-y: auto;
+            /* Ensure vertical scrolling */
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            border-left: 4px solid var(--primary);
+            padding-left: 10px;
+        }
+
+        /* CAROUSEL STYLES */
+        .carousel-container {
+            position: relative;
+            margin-top: 40px;
+            margin-bottom: 40px;
+            overflow: hidden;
+            padding-bottom: 10px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .carousel-track {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+            /* No gap here so that translateX(-100%) works perfectly */
+        }
+
+        .carousel-slide {
+            min-width: 100%;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-rows: repeat(2, auto);
+            gap: 15px;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            background: transparent;
+        }
+
+        .file-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 16/9;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            width: 100%;
+            height: auto;
+            min-width: 0;
+            /* Prevents stretching grid cell */
+        }
+
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            border-color: var(--primary);
+        }
+
+        .file-thumbnail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            max-width: 100%;
+            /* Ensure it doesn't overflow */
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+
+        .file-card:hover .file-thumbnail {
+            opacity: 0.8;
+        }
+
+        .file-info {
+            position: relative;
+            z-index: 2;
+            padding: 12px;
+            /* Slightly reduced padding */
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .file-title {
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            /* Slightly smaller font to fit notes better */
+            margin-bottom: 4px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-date {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+        }
+
+        .file-type-icon,
+        .file-transcript-icon {
+            position: absolute;
+            right: 10px;
+            z-index: 3;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            padding: 5px;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-type-icon {
+            top: 10px;
+        }
+
+        .file-transcript-icon {
+            top: 45px;
+        }
+
+        .file-action-icon {
+            position: absolute;
+            top: 10px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            padding: 6px;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-action-icon:hover {
+            background: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .action-edit {
+            left: 10px;
+        }
+
+        .action-delete {
+            left: 45px;
+        }
+
+        .nav-arrow {
+            position: absolute;
+            bottom: 5px;
+            right: 0;
+            background: var(--primary);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        .nav-arrow svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .nav-arrow:hover {
+            transform: scale(1.1);
+            background: var(--primary-hover);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+        }
+
+        .nav-arrow.prev {
+            left: 0;
+            right: auto;
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: var(--glass-border);
+            margin: 40px 0;
+        }
+
+        .empty-state {
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+            background: var(--glass-bg);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div style="display:flex; align-items:center; color:var(--primary); gap:12px; margin-bottom:24px;">
+        <img src="icons/icon48.png" alt="Logo">
+        <h2>SemiaSB</h2>
+        <h4 style="margin:0; color:var(--text-secondary); font-size:12px;">by LID</h4>
+    </div>
+    <h1><i data-lucide="layout-grid"></i> Mes Dossiers</h1>
+
+
+    <!-- VIDEOS SECTION -->
+    <section id="videos-section">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <div class="section-title" style="margin-bottom:0;">Mes Vidéos</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="import-video-btn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px;">
+                    <i data-lucide="video" style="width:16px; height:16px;"></i> Importer une vidéo
+                </button>
+                <div style="position: relative;">
+                    <input type="text" id="search-videos" placeholder="Rechercher une vidéo..."
+                        style="padding: 8px 12px 8px 35px; border-radius: 20px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); color:white; width: 200px; transition: width 0.3s;">
+                    <i data-lucide="search"
+                        style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 16px; height: 16px;"></i>
+                </div>
+            </div>
+        </div>
+        <div class="carousel-container">
+            <div id="videos-track" class="carousel-track">
+                <!-- JS will inject .carousel-slide items here -->
+            </div>
+        </div>
+    </section>
+    <hr>
+    <!-- NOTES SECTION -->
+    <section id="notes-section">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <div class="section-title" style="margin-bottom:0;">Mes Notes</div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button id="import-note-btn" class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px;">
+                    <i data-lucide="file-up" style="width:16px; height:16px;"></i> Importer une note
+                </button>
+                <div style="position: relative;">
+                    <input type="text" id="search-notes" placeholder="Rechercher une note..."
+                        style="padding: 8px 12px 8px 35px; border-radius: 20px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); color:white; width: 200px; transition: width 0.3s;">
+                    <i data-lucide="search"
+                        style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 16px; height: 16px;"></i>
+                </div>
+            </div>
+        </div>
+        <div class="carousel-container">
+            <div id="notes-track" class="carousel-track">
+                <!-- JS will inject .carousel-slide items here -->
+            </div>
+            <!-- Arrow button added dynamically if needed -->
+        </div>
+    </section>
+
+    <!-- Hidden inputs for import -->
+    <input type="file" id="import-note-input" accept=".html" style="display: none;">
+    <input type="file" id="import-video-input" accept="video/*,.json,.txt" multiple style="display: none;">
+
+    <script src="myfiles.js"></script>
+</body>
+
+</html>

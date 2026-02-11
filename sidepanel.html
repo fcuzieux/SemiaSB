@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="style.css">
   <!-- Lucide Icons (local) -->
   <script src="lucide.min.js"></script>
+  <!-- ts-ebml pour réparer métadonnées WebM -->
+  <script src="EBML.min.js"></script>
 </head>
 
 <body>
@@ -20,16 +22,16 @@
       </div>
 
       <div class="sidebar-menu">
-        <button class="menu-item active" data-view="Video-Capture" title="Video Capture">
+        <button class="menu-item" data-view="Video-Capture" title="Video Capture">
           <i data-lucide="video"></i>
         </button>
 
-        <button class="menu-item" data-view="Note-Capture" title="Note Capture">
-          <i data-lucide="file-text"></i>
+        <button class="menu-item active" data-view="Note-Capture" title="Note Capture">
+          <i data-lucide="notebook-pen"></i>
         </button>
 
         <button class="menu-item" data-view="Ask-Semia" title="Ask an IA">
-          <i data-lucide="brain"></i>
+          <i data-lucide="sparkles"></i>
         </button>
 
         <button class="menu-item" data-view="folder" title="Dossier">
@@ -45,35 +47,42 @@
     <!-- Zone de contenu principal -->
     <main class="content-area">
       <!-- Vue: Video Capture -->
-      <div id="view-Video-Capture" class="view-container active">
+      <div id="view-Video-Capture" class="view-container">
         <div class="view-header">
           <h3>🎞 Video Capture</h3>
           <p class="view-description">Enregistrez l'audio et la vidéo d'un onglet</p>
         </div>
 
-        <div class="view-content">
-          <label><i data-lucide="mic" style="width: 18px; height: 18px;"></i>
+        <div class="view-content" id="video-warning-container">
+          <div id="video-warning">
+            ⚠️ Sous Firefox, vous ne pouvez utiliser que la fonction capture.html qui devrait s'être ouverte en pleine
+            page pour la capture vidéo d’onglet ou d'une fenêtre.
+          </div>
+        </div>
+        <div class="view-content" id="video-chrome-container">
+          <label><i data-lucide="mic"></i>
             <input type="checkbox" id="captureAudio" checked>
             Capturer l'audio
           </label>
-          <label><i data-lucide="video" style="width: 18px; height: 18px;"></i>
+          <label><i data-lucide="video"></i>
             <input type="checkbox" id="captureVideo" checked>
             Capturer la vidéo
           </label>
-          <label><i data-lucide="captions" style="width: 18px; height: 18px;"></i>
-            <input type="checkbox" id="liveTranscription" checked disabled>
-            Live transcription (Not yet but soon I hope
-            😅)
+          <label><i data-lucide="captions"></i>
+            STT-The true power of ubiquity <i data-lucide="users"></i>
+            <button id="startCaptureWithTranscription">
+              <i data-lucide="square-chart-gantt"></i>
+            </button>
           </label>
           <label style="display: block; margin-top: 15px;">
-            <i data-lucide="file-video" style="width: 18px; height: 18px;"></i>
+            <i data-lucide="file-video"></i>
             Titre de la vidéo
           </label>
-          <input type="text" id="videoTitle" value="Capture-video" placeholder="Nom de la vidéo..."
-            style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+          <input type="text" id="videoTitle" value="Capture-video" placeholder="Nom de la vidéo...">
           <div class="row">
-            <button id="startCapture">Démarrer</button>
-            <button id="stopCapture" disabled>Arrêter</button>
+            <button id="startCapture"><i data-lucide="disc"></i> Démarrer</button>
+            <button id="stopCapture" disabled><i data-lucide="stop-circle"></i>
+              Arrêter</button>
           </div>
 
           <video id="preview" autoplay muted playsinline></video>
@@ -81,25 +90,20 @@
           <!-- Zone de chapitrage (visible uniquement pendant l'enregistrement) -->
           <div id="chapter-controls" style="display: none; margin-top: 15px;">
             <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-              <button id="addChapterBtn" style="display: flex; align-items: center; gap: 5px; padding: 8px 12px;">
-                <i data-lucide="file-clock" style="width: 18px; height: 18px;"></i>
+              <button id="addChapterBtn">
+                <i data-lucide="file-clock"></i>
                 Ajouter un chapitre
               </button>
             </div>
 
             <!-- Formulaire de saisie du chapitre (masqué par défaut) -->
-            <div id="chapter-input-form"
-              style="display: none; margin-bottom: 15px; padding: 10px; background: #f9fafb; border-radius: 6px; border: 1px solid var(--border-color);">
+            <div id="chapter-input-form" style="display: none; margin-bottom: 15px;">
               <label style="display: block; margin-bottom: 5px; font-weight: 500;">Nom du chapitre</label>
               <div style="display: flex; gap: 8px;">
                 <input type="text" id="chapterNameInput" placeholder="Ex: Introduction, Démonstration..."
-                  style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
-                <button id="validateChapterBtn" type="button"
-                  style="padding: 8px 15px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">✓
-                  Valider</button>
-                <button id="cancelChapterBtn" type="button"
-                  style="padding: 8px 15px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">✗
-                  Annuler</button>
+                  style="flex: 1;">
+                <button id="validateChapterBtn" type="button" class="success-btn">✓ Valider</button>
+                <button id="cancelChapterBtn" type="button" class="error-btn">✗ Annuler</button>
               </div>
             </div>
 
@@ -114,22 +118,25 @@
       </div>
 
       <!-- Vue: Note-Capture -->
-      <div id="view-Note-Capture" class="view-container">
+      <div id="view-Note-Capture" class="view-container active">
         <div class="view-header capture-header">
-          <h3>📝 Note Capture <button id="captureScreenshot">📸 Capturer</button></h3>
-          <p class="view-description">Capturez et commentez une note</p>
+          <div class="view-header" style="margin: 0;"> <!-- Reset margin for nested header -->
+            <h3><i data-lucide="notebook-pen"></i> Note Capture</h3>
+            <p class="view-description">Capturez et commentez une note</p>
+            <br>
+            <button id="captureScreenshot"><i data-lucide="camera"></i> Capturer</button>
+          </div>
         </div>
         <div class="view-content">
-          <p class="view-description">📸 Capturer une nouvelle note</p>
           <br>
-          <p class="view-description">Indiquer le titre de la note, puis cliquer sur "📸 Capturer" pour lancer une
-            nouvelle note 😁</p>
+          <p class="view-description">Indiquer le titre de la note, puis cliquer sur "<i data-lucide="camera"></i>
+            Capturer" pour lancer une
+            nouvelle note </p>
           <br>
           <label>
             Titre de la Note
           </label>
-          <input type="text" id="noteTitle" placeholder="Titre de ma note..."
-            style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+          <input type="text" id="noteTitle" placeholder="Titre de ma note...">
 
           <label>
             Introduction de la Note
@@ -139,49 +146,38 @@
             <button data-action="italic"><em>I</em></button>
             <button data-action="underline"><u>U</u></button>
 
-            <button data-action="text-color" data-color="#e11d48">A</button>
+            <button data-action="text-color" data-color="#f87171">A</button> <!-- Adjusted color for dark mode -->
             <button data-action="bg-color" data-color="#facc15">A</button>
-
-            <!-- <button data-action="font-bigger">A+</button>
-              <button data-action="font-smaller">A-</button> -->
           </div>
-          <div class="editor" id="noteIntro" contenteditable="true"
-            style="border:1px solid #ccc; min-height:120px; padding:8px;">
+          <div class="editor" id="noteIntro" contenteditable="true" style="min-height:120px;">
             Réunion capturée avec SemiaSB by LID...
           </div>
 
           <!-- Liste des captures -->
           <div id="capturesList"></div>
 
-
-          <!-- <div class="row" id="exportRow" style="display: none;">
-            <label>
-              Conclusion de la Note
-              <textarea id="noteConclusion" placeholder="Ex: Conclusion de la réunion...Actions à entreprendre..."
-                style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
-            </textarea>
-            </label> -->
           <div class="row" id="exportRow" style="display: none;">
-            <label>
-              Conclusion de la Note
-            </label>
-            <div class="toolbar">
-              <button data-action="bold">B</button>
-              <button data-action="italic"><em>I</em></button>
-              <button data-action="underline"><u>U</u></button>
+            <div style="width: 100%;">
+              <label>
+                Conclusion de la Note
+              </label>
+              <div class="toolbar">
+                <button data-action="bold">B</button>
+                <button data-action="italic"><em>I</em></button>
+                <button data-action="underline"><u>U</u></button>
 
-              <button data-action="text-color" data-color="#e11d48">A</button>
-              <button data-action="bg-color" data-color="#facc15">A</button>
-
-              <!-- <button data-action="font-bigger">A+</button>
-              <button data-action="font-smaller">A-</button> -->
+                <button data-action="text-color" data-color="#f87171">A</button>
+                <button data-action="bg-color" data-color="#facc15">A</button>
+              </div>
+              <div class="editor" id="noteConclusion" contenteditable="true" style="min-height:120px;">
+                Réunion capturée avec SemiaSB by LID...
+              </div>
+              <!-- Bouton d'export -->
+              <div class="row">
+                <button id="exportNote" class="export-btn">💾 Enregistrer la note</button>
+                <button id="copyNote" class="copy-btn"><i data-lucide="copy"></i> Copier la note</button>
+              </div>
             </div>
-            <div class="editor" id="noteConclusion" contenteditable="true"
-              style="border:1px solid #ccc; min-height:120px; padding:8px;">
-              Réunion capturée avec SemiaSB by LID...
-            </div>
-            <!-- Bouton d'export -->
-            <button id="exportNote" class="export-btn">💾 Enregistrer la note</button>
           </div>
         </div>
       </div>
@@ -191,8 +187,17 @@
       <div id="view-folder" class="view-container">
 
         <div class="view-header">
-          <h3>📂 Mes Dossiers</h3>
-          <p class="view-description">Gestion des dossiers</p>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h3>📂 Mes Dossiers</h3>
+              <p class="view-description">Gestion des dossiers</p>
+            </div>
+            <button id="open-detailed-view-btn" class="btn-secondary"
+              style="font-size: 11px; padding: 4px 8px; margin-left: 10px;">
+              <i data-lucide="layout-grid"
+                style="width: 14px; height: 14px; margin-right: 4px; vertical-align: text-bottom;"></i>Vue détaillée
+            </button>
+          </div>
         </div>
         <div class="view-content">
           <h3>Mes Notes</h3>
@@ -214,7 +219,7 @@
       <!-- Vue: Ask-Semia -->
       <div id="view-Ask-Semia" class="view-container">
         <div class="view-header">
-          <h3>🧠 Ask an IA</h3>
+          <h3><i data-lucide="sparkles"></i> Ask an IA</h3>
           <p class="view-description">Toujours à votre service, mais il faut quand même penser à paramétrer vos IA 😉
           </p>
         </div>
@@ -222,6 +227,7 @@
         <!-- Menu principal des outils IA -->
         <div class="view-content">
           <h2><i data-lucide="wrench"></i> Outils IA</h2>
+          <br>
           <div class="tools-grid">
             <div class="tool-card" data-target="view-Ask-Webpage" style="cursor: pointer;">
               <div class="tool-icon"><i data-lucide="scan-search"></i></div>
@@ -242,6 +248,12 @@
                 <h3>Traduction IA</h3>
               </div>
             </div>
+            <div class="tool-card" data-target="view-Chat-PDF" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="file-text"></i></div>
+              <div class="tool-info">
+                <h3>Dialoguer PDF</h3>
+              </div>
+            </div>
             <div class="tool-card" data-target="view-Ecrire-IA" style="cursor: pointer;">
               <div class="tool-icon"><i data-lucide="pencil"></i></div>
               <div class="tool-info">
@@ -251,30 +263,81 @@
           </div>
         </div>
 
-        <!-- Sous-vue: Analyse de page -->
+        <!-- Sous-vue: Dialoguer PDF -->
+        <div id="view-Chat-PDF" class="view-content" style="display: none;">
+          <h3><i data-lucide="file-text"></i> Dialoguer avec un PDF</h3>
+          <p>Analysez et posez des questions sur vos documents PDF.</p>
+
+          <div class="upload-area"
+            style="margin-bottom: 20px; padding: 15px; border-radius: 8px; border: 1px dashed var(--glass-border); text-align: center;">
+            <input type="file" id="pdf-upload" accept=".pdf" style="display: none;">
+            <label for="pdf-upload" style="cursor: pointer; display: block;">
+              <i data-lucide="upload" style="margin-bottom: 5px;"></i><br>
+              <span id="pdf-filename">Cliquez pour sélectionner un PDF</span>
+            </label>
+            <div id="pdf-status" style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;"></div>
+          </div>
+
+          <div style="position:relative;">
+            <textarea id="pdf-question" placeholder="Posez votre question sur le PDF..."></textarea>
+
+            <button id="pdf-ask-btn" type="button" style="position:absolute; right:5px; bottom:5px;" disabled>
+              ✨➤
+            </button>
+          </div>
+
+          <div class="row">
+            <button id="pdf-clear-btn">🗑️ Nouvelle conversation</button>
+          </div>
+
+          <div id="pdf-answer"
+            style="margin-top: 20px; line-height: 1.6; font-size: 14px; max-height: 400px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- Sous-vue: Écrire IA -->
+        <div id="view-Ecrire-IA" class="view-content" style="display: none;">
+          <h3>Écrire/Répondre avec l'IA</h3>
+          <p>Cette fonctionnalité arrive bientôt...</p>
+        </div>
         <div id="view-Ask-Webpage" class="view-content" style="display: none;">
-          <h3><i data-lucide="scan-search" style="color: #8b5cf6;"></i> Analyse IA de la page active</h3>
+          <h3><i data-lucide="scan-search"></i> Analyse IA de la page active</h3>
           <p class="view-description">📄 Lire la page pour vérifier que l'IA comprend bien le contexte</p>
           <br>
           <p class="view-description">✨ Questionner l'IA</p>
           <br>
           <div class="ai-controls">
-            <button id="ai-scrape-btn"
-              style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">📄 Lire la
-              page</button>
+            <button id="ai-scrape-btn">📄 Lire la page</button>
+            <button id="ai-scrape-multi-btn">🗂️ Lire plusieurs pages</button>
+
             <div id="ai-status"
-              style="display:none; margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px;">
+              style="display:none; margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px;"></div>
+
+            <!-- Container for multi-page selection -->
+            <div id="multi-page-selection-container"
+              style="display:none; margin-top: 10px; padding: 10px; border: 1px solid var(--glass-border); border-radius: 6px; background: rgba(0,0,0,0.2);">
+              <h4 style="margin: 0 0 10px 0; font-size: 14px;">Sélectionnez les pages à inclure :</h4>
+              <div id="tabs-list-container" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;">
+                <!-- Checkboxes will be injected here -->
+              </div>
+              <button id="confirm-multi-scrape-btn" style="width: 100%; font-size: 13px;">Valider la sélection</button>
             </div>
           </div>
 
-          <div style="margin-top: 16px;">
+          <div style="margin-top: 16px; position:relative;">
             <label>Ta question</label>
-            <textarea id="ai-question" placeholder="Ex: Résume cette page en 3 points..."
-              style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;"></textarea>
-          </div>
+            <textarea id="ai-question" placeholder="Ex: Résume cette page en 3 points..."></textarea>
 
+            <!-- Bouton envoyer -->
+            <button id="ai-analyze-btn" type="button" style="position:absolute; right:5px; bottom:5px;">
+              ✨➤
+            </button>
+          </div>
           <div class="row">
-            <button id="ai-analyze-btn" disabled>✨ Analyser avec IA</button>
+            <!-- Bouton résumer -->
+            <button id="ai-resume-btn">📑 Résumer structuré</button>
+
+            <!-- Bouton news -->
+            <button id="ai-news-btn">🗞️ Rédige une News</button>
           </div>
 
           <div id="ai-answer" style="margin-top: 20px; line-height: 1.6; font-size: 14px;"></div>
@@ -282,25 +345,20 @@
 
         <!-- Sous-vue: Chat IA -->
         <div id="view-Chat-IA" class="view-content" style="display: none;">
-          <h3><i data-lucide="message-circle-code" style="color: #8b5cf6;"></i> Salut,
+          <h3><i data-lucide="message-circle-code"></i> Salut,
             Comment puis-je vous aider aujourd'hui ?</h3>
           <p>💬 Discutez avec l'IA. L'historique de conversation est conservé pour un contexte continu. (Ctrl+Entrée
             pour envoyer)</p>
           <div style="position:relative;">
-            <textarea id="ai-text-to-chat" placeholder="Ex: Que peux-tu faire pour moi aujourd'hui ?" style="width:100%; min-height:80px; padding:10px 40px 10px 10px;
-                   border:1px solid var(--border-color);
-                   border-radius:var(--radius); resize:vertical;"></textarea>
+            <textarea id="ai-text-to-chat" placeholder="Ex: Que peux-tu faire pour moi aujourd'hui ?"></textarea>
 
             <!-- Bouton envoyer -->
-            <button id="ai-chat-btn" type="button" style="position:absolute; right:5px; bottom:5px;
-                   border:none; background:transparent; cursor:pointer; color: #8b5cf6;">
+            <button id="ai-chat-btn" type="button" style="position:absolute; right:5px; bottom:5px;">
               ✨➤
             </button>
           </div>
           <div class="row">
-            <button id="ai-clear-history-btn"
-              style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">🗑️ Effacer
-              l'historique</button>
+            <button id="ai-clear-history-btn">🗑️ Effacer l'historique</button>
           </div>
 
           <div id="ai-answer-chat"
@@ -309,7 +367,7 @@
 
         <!-- Sous-vue: Traduction IA -->
         <div id="view-Translation-IA" class="view-content" style="display: none;">
-          <h3><i data-lucide="languages" style="color: #8b5cf6;"></i> Traduction IA</h3>
+          <h3><i data-lucide="languages"></i> Traduction IA</h3>
           <p>Demander à l'IA de traduire une phrase ou un texte</p>
           <label>
             Langue d'origine
@@ -321,7 +379,8 @@
               <option value="espagnol">Espagnol</option>
               <option value="italien">Italien</option>
             </select>
-            <span>vers</span>
+          </label>
+          <label><span>vers</span>
             <select id="ai-target-language">
               <option value="français">Français</option>
               <option value="anglais">Anglais</option>
@@ -332,18 +391,17 @@
           </label>
 
           <textarea id="ai-text-to-translate"
-            placeholder="Ex: Ce n\'est pas l\'IA qui pense trop, c\'est nous qui pensons trop peu à ce qu\'elle pourrait devenir...."
-            style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;"></textarea>
-          <button id="ai-translate-btn">✨ Traduire avec IA</button> <button id="ai-dictionary-btn">✨ Dictionnaire
-            IA</button>
+            placeholder="Ex: Ce n\'est pas l\'IA qui pense trop, c\'est nous qui pensons trop peu à ce qu\'elle pourrait devenir...."></textarea>
+
+          <div class="row">
+            <button id="ai-translate-btn">✨ Traduire avec IA</button>
+            <button id="ai-dictionary-btn">✨ Dictionnaire IA</button>
+          </div>
           <div id="ai-translation" style="margin-top: 20px; line-height: 1.6; font-size: 14px;"></div>
         </div>
 
         <!-- Sous-vue: Écrire IA -->
-        <div id="view-Ecrire-IA" class="view-content" style="display: none;">
-          <h3>Écrire/Répondre avec l'IA</h3>
-          <p>Cette fonctionnalité arrive bientôt...</p>
-        </div>
+
       </div>
 
       <!-- Vue: Paramètres -->
@@ -353,10 +411,10 @@
           <p class="view-description">Configuration de l'extension</p>
         </div>
         <div class="view-content">
-          <h4 style="margin-bottom: 15px; color: var(--text-primary);">🤖 Configuration IA</h4>
+          <h4 style="margin-bottom: 15px; color: var(--text-main);"><i data-lucide="sparkles"></i> Configuration IA</h4>
 
           <label>
-            Fournisseur IA
+            <i data-lucide="sparkle"></i>&nbsp;Fournisseur IA
             <select id="settings-provider">
               <option value="semia">SEMIA (gpt-oss:120b)</option>
               <option value="mistral">Mistral (open-mistral-nemo)</option>
@@ -367,37 +425,49 @@
           </label>
 
           <label>
-            Clé API
-            <input type="password" id="settings-api-key" placeholder="sk-..."
-              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            <i data-lucide="key"></i>&nbsp;Clé&nbsp;API
+            <input type="password" id="settings-api-key" placeholder="sk-...">
           </label>
 
           <label>
             Modèle (Optionnel)
-            <input type="text" id="settings-model" placeholder="Ex: gpt-4o-mini"
-              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            <input type="text" id="settings-model" placeholder="Ex: gpt-4o-mini">
             <small style="color: var(--text-secondary); font-size: 11px;">Laissez vide pour utiliser le modèle par
               défaut.</small>
           </label>
 
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid var(--border-color);">
+          <hr style="margin: 30px 0;">
 
-          <h4 style="margin-bottom: 15px; color: var(--text-primary);">💾 Sauvegardes</h4>
+          <h4 style="margin-bottom: 15px; color: var(--text-main);"><i data-lucide="save"></i> Sauvegardes</h4>
 
           <label>
-            Dossier de sauvegarde par défaut
-            <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
-              <input type="text" id="settings-backup-folder" placeholder="Aucun dossier sélectionné" readonly
-                style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); background: #f9fafb; cursor: not-allowed;">
-              <button id="select-folder-btn" style="padding: 10px 15px; white-space: nowrap;">📁 Parcourir</button>
-            </div>
-            <small style="color: var(--text-secondary); font-size: 11px;">
-              Dossier utilisé par défaut pour enregistrer les notes et vidéos capturées.
-            </small>
+            Dossier de sauvegarde dans Téléchargements
           </label>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+            <input type="text" id="settings-backup-folder" placeholder="Aucun dossier sélectionné" readonly
+              style="flex: 1; cursor: not-allowed;">
+            <button id="select-folder-btn" style="white-space: nowrap;"><i data-lucide="folder"></i> Dossier
+              Relatif</button>
+          </div>
+          <small style="color: var(--text-secondary); font-size: 11px; display: block; margin-bottom: 10px;">
+            SemiaSB enregistrera les notes et vidéos capturées dans le dossier Téléchargements\Nom_du_dossier.
+          </small>
+
+          <label>
+            <i data-lucide="link"></i>&nbsp;Liaison Directe (pour chargement Auto dans l'Éditeur)
+          </label>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+            <button id="link-folder-btn" style="flex: 1; background: var(--primary);"><i data-lucide="link"></i> Lier le
+              Dossier de Backup</button>
+            <div id="link-status-icon" title="Dossier non lié" style="color: #ef4444;"><i data-lucide="unlink"></i>
+            </div>
+          </div>
+          <small id="link-folder-path" style="color: #10b981; font-size: 11px; display: none;">
+            ✅ Dossier lié avec succès.
+          </small>
 
           <div class="row" style="margin-top: 30px;">
-            <button id="settings-save-btn">💾 Sauvegarder tous les paramètres</button>
+            <button id="settings-save-btn"><i data-lucide="save"></i> Sauvegarder tous les paramètres</button>
           </div>
           <div id="settings-status" style="margin-top: 10px; text-align: center; font-size: 13px; min-height: 20px;">
           </div>
@@ -415,11 +485,42 @@
   <script src="ai/ai-analyze.js"></script>
   <script src="ai/ai-translate.js"></script>
   <script src="ai/ai-chat.js"></script>
+  <!-- PDF.js library (must be downloaded) -->
+  <script src="libs/pdfjs/pdf.min.js"></script>
+  <script src="ai/ia-chatpdf.js"></script>
   <script src="ask-semia-new.js"></script>
 
   <script src="sidepanel.js"></script>
   <script src="folder-view.js"></script>
   <script src="editor.js"></script>
+
+  <!-- Redirection Firefox vers capture.html -->
+  <script src="firefox-redirect.js"></script>
+
+  <!-- Stockage robuste IndexedDB -->
+  <script src="capture-storage.js"></script>
+
+  <!-- Modal de Traitement Vidéo (Anti-Crash) -->
+  <div id="processing-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; color: white; text-align: center; padding: 20px;">
+    <div
+      style="background: var(--bg-card); padding: 30px; border-radius: 12px; border: 1px solid var(--glass-border); max-width: 90%;">
+      <div style="margin-bottom: 20px;">
+        <i data-lucide="loader-2" class="spinner" style="width: 48px; height: 48px; color: var(--primary);"></i>
+      </div>
+      <h3 style="margin-bottom: 15px; font-size: 18px;">Traitement en cours...</h3>
+      <p id="processing-step" style="color: var(--text-secondary); margin-bottom: 25px; font-size: 14px;">Optimisation
+        de la vidéo...</p>
+
+      <div
+        style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 12px; border-radius: 8px;">
+        <div style="color: #fca5a5; font-weight: bold; font-size: 14px; margin-bottom: 5px;">⚠️ ATTENTION</div>
+        <div style="color: #fca5a5; font-size: 12px;">Ne fermez pas le sidepanel tant que le téléchargement n'a pas
+          commencé !</div>
+      </div>
+    </div>
+  </div>
+
 </body>
 
 </html>

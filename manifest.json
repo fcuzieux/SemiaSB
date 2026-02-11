@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SemiaSB",
   "version": "1.0",
-  "description": "Enregistre onglets avec audio/vidéo",
+  "description": "Enregistre onglets avec audio/vidéo + notes",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -17,10 +17,25 @@
     "downloads",
     "downloads.open",
     "scripting",
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:8080/capture.html*",
+        "http://127.0.0.1:8080/capture.html*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_start"
+    }
   ],
   "side_panel": {
     "default_path": "sidepanel.html"

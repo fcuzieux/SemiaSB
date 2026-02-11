@@ -59,13 +59,63 @@ function initSettings() {
         loadProviderSettings(selectedProvider);
     });
 
-    // Sélectionner un dossier de sauvegarde
+    const linkFolderBtn = document.getElementById('link-folder-btn');
+    const linkStatusIcon = document.getElementById('link-status-icon');
+    const linkFolderPath = document.getElementById('link-folder-path');
+
+    // Charger l'état du lien au démarrage
+    async function loadLinkState() {
+        if (typeof CaptureStorage !== 'undefined') {
+            const handle = await CaptureStorage.getHandle('backupDirHandle');
+            if (handle) {
+                updateLinkUI(true);
+            }
+        }
+    }
+
+    function updateLinkUI(isLinked) {
+        if (isLinked) {
+            linkStatusIcon.innerHTML = '<i data-lucide="link-2"></i>';
+            linkStatusIcon.style.color = '#10b981';
+            linkStatusIcon.title = "Dossier lié";
+            if (linkFolderPath) linkFolderPath.style.display = 'block';
+        } else {
+            linkStatusIcon.innerHTML = '<i data-lucide="unlink"></i>';
+            linkStatusIcon.style.color = '#ef4444';
+            linkStatusIcon.title = "Dossier non lié";
+            if (linkFolderPath) linkFolderPath.style.display = 'none';
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Sélectionner un dossier via File System Access API
+    linkFolderBtn?.addEventListener('click', async () => {
+        try {
+            if (typeof window.showDirectoryPicker !== 'function') {
+                alert("Votre navigateur ne supporte pas l'API File System Access.");
+                return;
+            }
+
+            const handle = await window.showDirectoryPicker({
+                mode: 'readwrite'
+            });
+
+            if (handle && typeof CaptureStorage !== 'undefined') {
+                await CaptureStorage.saveHandle('backupDirHandle', handle);
+                updateLinkUI(true);
+                showStatus('✅ Dossier lié pour l\'éditeur !');
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            console.error('Erreur liaison dossier:', error);
+            showStatus('❌ Erreur lors de la liaison', true);
+        }
+    });
+
+    // Sélectionner un dossier de sauvegarde (Nom du dossier relatif)
     selectFolderBtn?.addEventListener('click', async () => {
         try {
-            // Note: Chrome extensions ne peuvent pas directement ouvrir un sélecteur de dossier
-            // On utilise chrome.downloads.setShelfEnabled pour suggérer un dossier
-            // L'utilisateur devra entrer manuellement le chemin
-            const userInput = prompt('Entrez le chemin du dossier de sauvegarde (ex: C:\\Users\\YourName\\Downloads\\SemiaSB):', selectedBackupFolder);
+            const userInput = prompt('Entrez le nom du dossier de sauvegarde dans Téléchargements (ex: SemiaSB):', selectedBackupFolder);
             if (userInput !== null && userInput.trim() !== '') {
                 selectedBackupFolder = userInput.trim();
                 backupFolderInput.value = selectedBackupFolder;
@@ -103,7 +153,17 @@ function initSettings() {
         });
     });
 
+    // Charger les paramètres au démarrage
+    chrome.storage.local.get(['aiProvider'], (result) => {
+        const currentProvider = result.aiProvider || 'semia';
+        providerSelect.value = currentProvider;
+        loadProviderSettings(currentProvider);
+        loadBackupFolder();
+        loadLinkState();
+    });
+
     function showStatus(message, isError = false) {
+        if (!statusDiv) return;
         statusDiv.textContent = message;
         statusDiv.style.color = isError ? 'var(--error-text)' : 'var(--success-text)';
         setTimeout(() => {

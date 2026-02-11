@@ -40,7 +40,7 @@ function initNavigation() {
 
 // ===== FONCTION DE CAPTURE D'ONGLET =====
 let mediaRecorder = null;
-let recordedChunks = [];
+// let recordedChunks = []; // DÉSACTIVÉ : On ne stocke plus en RAM pour éviter les crashs
 let currentStream = null;
 let audioContext = null;
 let playbackSource = null;
@@ -54,6 +54,7 @@ let recordingStartTime = null; // Temps de début de l'enregistrement
 const captureAudio = document.getElementById('captureAudio');
 const captureVideo = document.getElementById('captureVideo');
 const startBtn = document.getElementById('startCapture');
+const startBtnWithTranscription = document.getElementById('startCaptureWithTranscription');
 const stopBtn = document.getElementById('stopCapture');
 const videoPreview = document.getElementById('preview');
 
@@ -73,7 +74,7 @@ function captureThumbnail() {
   }
 }
 
-function setupMediaRecorder(stream) {
+async function setupMediaRecorder(stream) {
   try {
     mediaRecorder = new MediaRecorder(stream, {
       mimeType: "video/webm;codecs=vp9,opus"
@@ -82,30 +83,68 @@ function setupMediaRecorder(stream) {
     mediaRecorder = new MediaRecorder(stream);
   }
 
-  recordedChunks = [];
+  // recordedChunks = []; // DÉSACTIVÉ
+  // Nettoyer stockage précédent
+  if (window.CaptureStorage) await window.CaptureStorage.clear();
 
   mediaRecorder.ondataavailable = (event) => {
     if (event.data && event.data.size > 0) {
-      recordedChunks.push(event.data);
+      // recordedChunks.push(event.data); // DÉSACTIVÉ
+      // Sauvegarde robuste (IndexedDB uniquement)
+      if (window.CaptureStorage) {
+        window.CaptureStorage.saveChunk(event.data).catch(err => console.error("Erreur persist storage:", err));
+      }
     }
   };
 
   mediaRecorder.onstop = async () => {
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
+    console.log("🛑 MediaRecorder ONSTOP (SidePanel)");
+
+    // AFFICHER MODAL DEBUT TRAITEMENT
+    showProcessingModal();
+    updateProcessingStep("Préparation des fichiers...");
+
+    // Reconstruction depuis IndexedDB (Anti-Crash RAM)
+    updateProcessingStep("Récupération des données...");
+    let finalBlobData = [];
+    if (window.CaptureStorage) {
+      finalBlobData = await window.CaptureStorage.getAllChunks();
+      console.log(`[SidePanel] Reconstruction depuis IndexedDB (${finalBlobData.length} chunks)`);
+    }
+
+    if (finalBlobData.length === 0) {
+      console.error("Aucune donnée vidéo trouvée.");
+      showStatus("Erreur : Aucune donnée vidéo trouvée", true);
+      hideProcessingModal();
+      return;
+    }
+
+    const blob = new Blob(finalBlobData, { type: "video/webm" });
+    finalBlobData = null; // Libération RAM immédiate
+
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '');
 
     // Récupérer le titre de la vidéo et nettoyer les caractères invalides
     const videoTitleInput = document.getElementById('videoTitle');
     let videoTitle = videoTitleInput?.value.trim() || 'Capture-video';
-    // Remplacer les caractères invalides pour un nom de fichier
     videoTitle = videoTitle.replace(/[<>:"/\\|?*]/g, '-');
 
     const filename = `${videoTitle}-${timestamp}.webm`;
-    const url = URL.createObjectURL(blob);
 
-    // Créer un fichier JSON avec les métadonnées des chapitres
+    // RÉPARATION EBML (Seeking VLC)
+    updateProcessingStep("Optimisation de la vidéo (Seekable)...");
+    showStatus("⚙️ Optimisation de la vidéo (Seeking)...");
+
+    // Petite pause pour laisser le DOM s'afficher
+    await new Promise(r => setTimeout(r, 100));
+
+    const fixedBlob = await fixWebM(blob, chapters);
+    const url = URL.createObjectURL(fixedBlob);
+
+    // JSON chapitres
     let chaptersJsonUrl = null;
     if (chapters.length > 0) {
+      updateProcessingStep("Génération des chapitres...");
       const chaptersMetadata = {
         videoFilename: filename,
         recordingDate: new Date().toISOString(),
@@ -117,97 +156,231 @@ function setupMediaRecorder(stream) {
         }))
       };
 
-      const chaptersBlob = new Blob([JSON.stringify(chaptersMetadata, null, 2)], { type: 'application/json' });
+      const chaptersBlob = new Blob(
+        [JSON.stringify(chaptersMetadata, null, 2)],
+        { type: 'application/json' }
+      );
       chaptersJsonUrl = URL.createObjectURL(chaptersBlob);
     }
 
-    // Récupérer le dossier de sauvegarde configuré
-    const settings = await chrome.storage.local.get(['backupFolder']);
-    const backupFolder = settings.backupFolder || '';
+    // Download vidéo
+    updateProcessingStep("Sauvegarde en cours...");
 
-    const downloadOptions = {
-      url: url,
-      filename: filename,
-      saveAs: true
+    // On passe les métadonnées pour l'historique et les dossiers
+    const metadata = {
+      id: Date.now(),
+      type: 'video',
+      title: videoTitle,
+      date: new Date().toISOString(),
+      thumbnail: lastVideoFrame, // Capturé au stopRecording
+      chapters: chapters.length > 0 ? chapters : null,
+      hasTranscript: false // Pas de live transcript direct dans le mode standard sidepanel
     };
 
-    if (backupFolder) {
-      const folderName = backupFolder.split(/[/\\]/).pop() || 'SemiaSB';
-      downloadOptions.filename = `${folderName}/${filename}`;
-    }
+    triggerDownload(url, filename, metadata);
 
-    if (chrome.downloads && chrome.downloads.download) {
-      chrome.downloads.download(downloadOptions, (downloadId) => {
-        if (chrome.runtime.lastError) {
-          console.error('Download error:', chrome.runtime.lastError);
-          showStatus('Enregistré ! (mode fallback)', true);
-          triggerDownload(url, filename);
-        } else {
-          const statusMsg = chapters.length > 0
-            ? `✅ Fichier sauvegardé : ${filename} (${chapters.length} chapitres)`
-            : `✅ Fichier sauvegardé : ${filename}`;
-          showStatus(statusMsg);
-
-          // Télécharger aussi le fichier JSON des chapitres si présent
-          if (chaptersJsonUrl && chapters.length > 0) {
-            const chaptersFilename = filename.replace('.webm', '-chapitres.json');
-            const chaptersDownloadOptions = {
-              url: chaptersJsonUrl,
-              filename: backupFolder ? `${backupFolder.split(/[/\\]/).pop() || 'SemiaSB'}/${chaptersFilename}` : chaptersFilename,
-              saveAs: false // Télécharger automatiquement sans demander
-            };
-
-            chrome.downloads.download(chaptersDownloadOptions, () => {
-              if (!chrome.runtime.lastError) {
-                console.log('Fichier chapitres sauvegardé:', chaptersFilename);
-              }
-            });
-          }
-
-          // --- SAUVEGARDE DANS L'HISTORIQUE ---
-          const videoData = {
-            id: Date.now(),
-            type: 'video',
-            title: filename,
-            date: new Date().toISOString(),
-            filename: downloadOptions.filename,
-            thumbnail: lastVideoFrame, // Utiliser la frame capturée au stop
-            chapters: chapters.length > 0 ? chapters : null // Sauvegarder les chapitres
-          };
-
-          chrome.storage.local.get(['savedVideos'], (result) => {
-            const videos = result.savedVideos || [];
-            videos.push(videoData);
-            chrome.storage.local.set({ savedVideos: videos });
-          });
-          // -------------------------------------
-        }
-      });
-    } else {
-      showStatus('Enregistré ! (mode direct)');
-      triggerDownload(url, filename);
+    // Download JSON chapitres si présent
+    if (chaptersJsonUrl && chapters.length > 0) {
+      const chaptersFilename = filename.replace('.webm', '-chapitres.json');
+      triggerDownload(chaptersJsonUrl, chaptersFilename);
     }
 
     setTimeout(() => {
       URL.revokeObjectURL(url);
       if (chaptersJsonUrl) URL.revokeObjectURL(chaptersJsonUrl);
     }, 60000);
+
+    const statusMsg = chapters.length > 0
+      ? `✅ Vidéo optimisée : ${filename} (${chapters.length} chapitres)`
+      : `✅ Vidéo optimisée : ${filename}`;
+    showStatus(statusMsg);
+
+    // CACHER MODAL FIN
+    updateProcessingStep("Terminé !");
+    setTimeout(() => {
+      hideProcessingModal();
+    }, 1500);
   };
 }
 
-function triggerDownload(url, filename = 'capture-tab.webm') {
-  const a = document.createElement('a');
-  a.style.display = 'none';
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+// ===== UTILS TRAITEMENT (MODAL + FIXWEBM) =====
+
+function showProcessingModal() {
+  const modal = document.getElementById('processing-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
 }
 
-// ===== FONCTIONS DE CHAPITRAGE =====
+function hideProcessingModal() {
+  const modal = document.getElementById('processing-modal');
+  if (modal) modal.style.display = 'none';
+}
 
-// Formater le temps en HH:MM:SS
+function updateProcessingStep(text) {
+  const step = document.getElementById('processing-step');
+  if (step) step.textContent = text;
+}
+
+/**
+ * Répare les métadonnées WebM (durée + index) et injecte les chapitres
+ * @param {Blob} blob 
+ * @param {Array} chaptersArr Liste des chapitres {timestamp, name}
+ * @returns {Promise<Blob>}
+ */
+async function fixWebM(blob, chaptersArr = []) {
+  const lib = window.ebml || window.EBML;
+  if (!lib) {
+    console.warn("ts-ebml non chargé (ni 'ebml' ni 'EBML' trouvés).");
+    return blob;
+  }
+
+  // SÉCURITÉ CRASH : Si le fichier dépasse 2 Go, on désactive l'optimisation
+  const MAX_SIZE_FOR_FIX = 2024 * 1024 * 1024; // 2 GB
+  if (blob.size > MAX_SIZE_FOR_FIX) {
+    console.warn(`⚠️ Fichier très volumineux (${(blob.size / 1024 / 1024).toFixed(2)} Mo). Optimisation désactivée.`);
+    return blob;
+  }
+
+  console.log("⚙️ (SidePanel) Début optimisation WebM via ts-ebml...");
+  try {
+    const decoder = new lib.Decoder();
+    const reader = new lib.Reader();
+    reader.logging = false;
+    reader.drop_default_duration = false;
+
+    let buf = await blob.arrayBuffer();
+    const elms = decoder.decode(buf);
+    elms.forEach(elm => reader.read(elm));
+    reader.stop();
+
+    console.log(`(SidePanel) Durée détectée: ${reader.duration}ms, Éléments: ${elms.length}`);
+
+    // EXTRACTION ET MODIFICATION DES MÉTADONNÉES
+    const metadatas = reader.metadatas;
+    const info = lib.tools.extractElement("Info", metadatas);
+
+    // Correction Durée
+    lib.tools.removeElement("Duration", info);
+    info.splice(1, 0, {
+      name: "Duration",
+      type: "f",
+      data: lib.tools.createFloatBuffer(reader.duration, 8)
+    });
+
+    // Génération des Chapitres EBML
+    let chaptersElms = [];
+    if (chaptersArr && chaptersArr.length > 0) {
+      console.log(`📦 (SidePanel) Encrage de ${chaptersArr.length} chapitres dans le WebM...`);
+      chaptersElms.push({ name: "Chapters", type: "m", isEnd: false });
+      chaptersElms.push({ name: "EditionEntry", type: "m", isEnd: false });
+
+      chaptersArr.forEach(ch => {
+        chaptersElms.push({ name: "ChapterAtom", type: "m", isEnd: false });
+        const tsNS = Math.round(ch.timestamp * 1000000000);
+        chaptersElms.push({ name: "ChapterTimeStart", type: "u", data: lib.tools.createUIntBuffer(tsNS) });
+        chaptersElms.push({ name: "ChapterDisplay", type: "m", isEnd: false });
+        chaptersElms.push({ name: "ChapString", type: "8", data: new TextEncoder().encode(ch.name) });
+        chaptersElms.push({ name: "ChapLanguage", type: "s", data: new TextEncoder().encode("fre") });
+        chaptersElms.push({ name: "ChapterDisplay", type: "m", isEnd: true });
+        chaptersElms.push({ name: "ChapterAtom", type: "m", isEnd: true });
+      });
+
+      chaptersElms.push({ name: "EditionEntry", type: "m", isEnd: true });
+      chaptersElms.push({ name: "Chapters", type: "m", isEnd: true });
+    }
+
+    // STRATÉGIE ROBUSTE : Concaténation + Décalage des Cues
+    const encoder = new lib.Encoder();
+    let chaptersBuf = new ArrayBuffer(0);
+
+    if (chaptersElms.length > 0) {
+      chaptersBuf = encoder.encode(chaptersElms);
+      console.log(`📏 (SidePanel) Taille des chapitres: ${chaptersBuf.byteLength} octets. Décalage des Cues...`);
+
+      if (reader.cues && reader.cues.length > 0) {
+        reader.cues.forEach(cue => {
+          cue.CueClusterPosition += chaptersBuf.byteLength;
+        });
+      }
+    }
+
+    // 1. Génération du header optimisé (Seeking)
+    const refinedMetadataBuf = lib.tools.makeMetadataSeekable(
+      reader.metadatas,
+      reader.duration,
+      reader.cues
+    );
+
+    // 2. BUFFER SURGERY : Forcer le Segment en "Taille Inconnue" (Unknown Size)
+    const view = new DataView(refinedMetadataBuf);
+    let patched = false;
+    for (let i = 0; i < refinedMetadataBuf.byteLength - 4; i++) {
+      if (view.getUint32(i) === 0x18538067) {
+        const sizeOffset = i + 4;
+        const uint8 = new Uint8Array(refinedMetadataBuf);
+        const firstByte = uint8[sizeOffset];
+
+        let length = 0;
+        for (let b = 0; b < 8; b++) {
+          if (firstByte & (0x80 >> b)) { length = b + 1; break; }
+        }
+
+        if (length > 0 && length <= 8) {
+          console.log(`💉 (SidePanel) [fixWebM] Segment trouvé. Patching "Unknown Size"...`);
+          uint8[sizeOffset] |= ((1 << (8 - length)) - 1);
+          for (let j = 1; j < length; j++) {
+            uint8[sizeOffset + j] = 0xFF;
+          }
+          patched = true;
+        }
+        break;
+      }
+    }
+
+    const body = blob.slice(reader.metadataSize);
+    const fixedBlob = new Blob([refinedMetadataBuf, chaptersBuf, body], { type: "video/webm" });
+
+    console.log(`✅ (SidePanel) WebM optimisé. Taille: ${fixedBlob.size}`);
+    return fixedBlob;
+  } catch (e) {
+    console.error("❌ Échec de la réparation EBML Sidepanel:", e);
+    return blob;
+  }
+}
+
+
+async function triggerDownload(url, filename, metadata = null) {
+  const api = typeof browser !== "undefined" ? browser : chrome;
+  if (api && api.downloads && api.downloads.download) {
+    let backupFolder = "";
+    try {
+      const result = await api.storage.local.get(['backupFolder']);
+      backupFolder = result.backupFolder || "";
+    } catch (e) { }
+
+    let finalPath = filename;
+    if (backupFolder) {
+      let cleanFolder = backupFolder.split(/[/\\]/).pop().replace(/[<>:"|?*]/g, '');
+      if (cleanFolder) finalPath = `${cleanFolder}/${filename}`;
+    }
+
+    api.downloads.download({ url: url, filename: finalPath, saveAs: false }, (downloadId) => {
+      if (!api.runtime.lastError && filename.endsWith('.webm') && metadata) {
+        api.runtime.sendMessage({ action: "SAVE_METADATA", filename: finalPath, metadata: metadata });
+      }
+    });
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
+// ===== CHAPITRAGE =====
+
 function formatTime(seconds) {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
@@ -215,12 +388,10 @@ function formatTime(seconds) {
   return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Afficher le formulaire d'ajout de chapitre
 function showChapterForm() {
   const form = document.getElementById('chapter-input-form');
   const input = document.getElementById('chapterNameInput');
   const addBtn = document.getElementById('addChapterBtn');
-
   if (form && input && addBtn) {
     form.style.display = 'block';
     addBtn.disabled = true;
@@ -229,11 +400,9 @@ function showChapterForm() {
   }
 }
 
-// Masquer le formulaire d'ajout de chapitre
 function hideChapterForm() {
   const form = document.getElementById('chapter-input-form');
   const addBtn = document.getElementById('addChapterBtn');
-
   if (form && addBtn) {
     form.style.display = 'none';
     addBtn.disabled = false;
@@ -335,7 +504,7 @@ if (startBtn) {
           }
         }
       },
-      (stream) => {
+      async (stream) => {
         if (chrome.runtime.lastError || !stream) {
           alert("Impossible de capturer cet onglet : " + (chrome.runtime.lastError?.message || ""));
           return;
@@ -350,7 +519,7 @@ if (startBtn) {
           playbackSource.connect(audioContext.destination);
         }
 
-        setupMediaRecorder(stream);
+        await setupMediaRecorder(stream);
         mediaRecorder.start(500);
 
         // Initialiser le chapitrage
@@ -418,6 +587,44 @@ if (stopBtn) {
     stopBtn.disabled = true;
     captureAudio.disabled = false;
     captureVideo.disabled = false;
+  };
+}
+
+/**
+ * Vérifie si le serveur local tourne sur localhost:8080
+ */
+async function checkServerRunning() {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000); // 1s timeout
+    const response = await fetch("http://localhost:8080/", {
+      method: "HEAD",
+      mode: "no-cors",
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return true;
+  } catch (e) {
+    console.warn("[SidePanel] Serveur local (localhost:8080) non détecté.");
+    return false;
+  }
+}
+
+if (startBtnWithTranscription) {
+  startBtnWithTranscription.onclick = async () => {
+    // Détection dynamique du serveur
+    const isServerUp = await checkServerRunning();
+
+    if (isServerUp) {
+      console.log("[SidePanel] 🚀 Redirection vers le serveur local.");
+      const url = "http://localhost:8080/capture.html";
+      window.open(url, "_blank");
+    } else {
+      console.log("[SidePanel] 💡 Serveur absent. Ouverture de la page locale de l'extension.");
+      // chrome.runtime.getURL nous donne l'URL interne (chrome-extension://...)
+      const url = chrome.runtime.getURL("capture.html");
+      window.open(url, "_blank");
+    }
   };
 }
 

@@ -6,26 +6,84 @@ function initNoteCapture() {
   const captureBtn = document.getElementById('captureScreenshot');
   const capturesList = document.getElementById('capturesList');
   const exportBtn = document.getElementById('exportNote');
+  const copyBtn = document.getElementById('copyNote');
   const exportRow = document.getElementById('exportRow');
   const noteTitleInput = document.getElementById('noteTitle');
   const noteIntroInput = document.getElementById('noteIntro');
   const noteConclusionInput = document.getElementById('noteConclusion');
 
+  // Helper namespace
+  function getBrowserAPI() {
+    if (typeof browser !== 'undefined' && browser.tabs) return browser;
+    return chrome;
+  }
+
   // Capturer une capture d'écran
   captureBtn?.addEventListener('click', async () => {
-
     try {
-      // Capturer l'onglet
-      const dataUrl = await chrome.tabs.captureVisibleTab(null, {
-        format: 'png',
+      const api = getBrowserAPI();
+
+      // 1) Récupérer l'onglet actif (utile pour vérifier l'URL)
+      const [tab] = await api.tabs.query({ active: true, currentWindow: true });
+      if (!tab) {
+        alert("Aucun onglet actif trouvé.");
+        return;
+      }
+
+      const url = tab.url || "";
+
+      // 2) Bloquer les pages non capturables (Firefox + Chrome)
+      if (
+        url.startsWith("about:") ||
+        url.startsWith("chrome://") ||
+        url.startsWith("moz-extension://") ||
+        url.startsWith("chrome-extension://")
+      ) {
+        alert("Impossible de capturer cet onglet (page système / interne).");
+        return;
+      }
+
+      // 3) Capture visibleTab (Chrome + Firefox)
+      //    - Chrome : chrome.tabs.captureVisibleTab
+      //    - Firefox : browser.tabs.captureVisibleTab
+      const dataUrl = await api.tabs.captureVisibleTab(tab.windowId, {
+        format: "png",
         quality: 100
       });
+      // const api = typeof browser !== 'undefined' && browser.tabs ? browser : chrome;
+
+      // captureBtn?.addEventListener('click', async () => {
+      // try {
+      // const [tab] = await api.tabs.query({ active: true, currentWindow: true });
+      // if (!tab) {
+      // alert("Aucun onglet actif trouvé.");
+      // return;
+      // }
+
+      // const url = tab.url || "";
+      // if (url.startsWith("about:") || url.startsWith("chrome://") ||
+      // url.startsWith("moz-extension://") || url.startsWith("chrome-extension://")) {
+      // alert("Impossible de capturer cet onglet (page système / interne).");
+      // return;
+      // }
+
+      // const dataUrl = await api.tabs.captureVisibleTab(tab.windowId, {
+      // format: "png",
+      // quality: 100
+      // });
+
+      // // ... suite inchangée (captures.push, renderCapture, etc.)
+      // } catch (e) {
+      // console.error("Erreur capture:", e);
+      // alert("Impossible de capturer cet onglet : " + (e.message || e));
+      // }
+      // });
 
       // Ajouter la capture au tableau
       const capture = {
         id: Date.now(),
         image: dataUrl,
-        note: ''
+        note: ""
       };
       captures.push(capture);
 
@@ -34,14 +92,14 @@ function initNoteCapture() {
 
       // Afficher le bouton d'export
       if (exportRow) {
-        exportRow.style.display = 'block';
+        exportRow.style.display = "block";
       }
-
     } catch (error) {
-      console.error('Erreur lors de la capture:', error);
-      alert('Impossible de capturer cet onglet : ' + error.message);
+      console.error("Erreur lors de la capture:", error);
+      alert("Impossible de capturer cet onglet : " + (error.message || error));
     }
   });
+
 
   // Afficher une capture
   function renderCapture(capture) {
@@ -153,21 +211,37 @@ function initNoteCapture() {
         } else {
           alert(`✅ Note sauvegardée : ${filename}`);
 
-          // --- SAUVEGARDE DANS L'HISTORIQUE ---
-          const thumbnail = captures.length > 0 ? captures[0].image : ''; // Utiliser la 1ère capture comme miniature
-          const noteData = {
-            id: Date.now(),
+          // --- SAUVEGARDE (Split Storage) ---
+          const noteId = Date.now();
+          const thumbnail = captures.length > 0 ? captures[0].image : '';
+
+          // 1. Metadata (Léger pour la liste)
+          const noteMeta = {
+            id: noteId,
             type: 'note',
             title: title,
             date: new Date().toISOString(),
-            filename: downloadOptions.filename, // Chemin relatif ou nom de fichier
+            filename: downloadOptions.filename,
             thumbnail: thumbnail
+          };
+
+          // 2. Contenu Lourd (Stocké à part)
+          const noteContent = {
+            id: noteId,
+            intro: intro,
+            conclusion: conclusion,
+            captures: captures
           };
 
           chrome.storage.local.get(['savedNotes'], (result) => {
             const notes = result.savedNotes || [];
-            notes.push(noteData);
-            chrome.storage.local.set({ savedNotes: notes });
+            notes.push(noteMeta);
+
+            // Sauvegarde atomique : metadonnées + contenu
+            chrome.storage.local.set({
+              savedNotes: notes,
+              [`note_content_${noteId}`]: noteContent
+            });
           });
           // -------------------------------------
         }
@@ -176,6 +250,35 @@ function initNoteCapture() {
     } else {
       triggerDownload(url, filename);
       URL.revokeObjectURL(url);
+    }
+  });
+
+  copyBtn?.addEventListener('click', async () => {
+    if (captures.length === 0) {
+      alert('Aucune capture à copier.');
+      return;
+    }
+
+    let title = noteTitleInput.value.trim();
+    let intro = noteIntroInput.innerHTML;
+    let conclusion = noteConclusionInput.innerHTML;
+    if (!title) {
+      title = "Note Capture";
+    }
+
+    // Générer le HTML
+    const htmlContent = generateHTML(title, intro, conclusion);
+
+    try {
+      // Version rich text pour Word / OneNote
+      const blob = new Blob([htmlContent], { type: "text/html" });
+      const item = new ClipboardItem({ "text/html": blob });
+      await navigator.clipboard.write([item]);
+
+      alert('✅ Note copiée dans le presse-papiers (format riche)');
+    } catch (e) {
+      console.error(e);
+      alert('❌ Erreur lors de la copie dans le presse-papiers');
     }
   });
 
@@ -298,15 +401,60 @@ function initNoteCapture() {
   }
 
   // Fonction helper pour télécharger
-  function triggerDownload(url, filename) {
+  async function triggerDownload(url, filename) {
+    const api = typeof browser !== "undefined" ? browser : chrome;
+
+    // 1. Tenter via l'API downloads de l'extension si dispo
+    if (api && api.downloads && api.downloads.download) {
+      const result = await api.storage.local.get(['backupFolder']);
+      let backupFolder = result.backupFolder || '';
+      let finalPath = filename;
+
+      if (backupFolder) {
+        let cleanFolder = backupFolder;
+        if (cleanFolder.includes(':') || cleanFolder.startsWith('/') || cleanFolder.startsWith('\\')) {
+          cleanFolder = cleanFolder.split(/[/\\]/).pop();
+        }
+        cleanFolder = cleanFolder.replace(/\.\./g, '').replace(/[<>:"|?*]/g, '');
+        if (cleanFolder) finalPath = `${cleanFolder}/${filename}`;
+      }
+
+      try {
+        await api.downloads.download({
+          url: url,
+          filename: finalPath,
+          saveAs: false
+        });
+        showStatus(`✅ Note sauvegardée dans : ${finalPath}`);
+        return;
+      } catch (e) {
+        console.warn("Erreur chrome.downloads, fallback vers lien direct:", e);
+      }
+    }
+
+    // 2. Fallback classique (navigateur)
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
-    a.download = filename;
+
+    // Tentative de prepend pour le téléchargement natif
+    let nativeFilename = filename;
+    const resultFallback = await (typeof chrome !== 'undefined' ? chrome : browser).storage.local.get(['backupFolder']);
+    let backupFolderFB = resultFallback.backupFolder || '';
+    if (backupFolderFB) {
+      let cleanFolder = backupFolderFB;
+      if (cleanFolder.includes(':') || cleanFolder.startsWith('/') || cleanFolder.startsWith('\\')) {
+        cleanFolder = cleanFolder.split(/[/\\]/).pop();
+      }
+      cleanFolder = cleanFolder.replace(/\.\./g, '').replace(/[<>:"|?*]/g, '');
+      if (cleanFolder) nativeFilename = `${cleanFolder}/${filename}`;
+    }
+
+    a.download = nativeFilename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    alert(`✅ Note sauvegardée : ${filename}`);
+    alert(`✅ Note sauvegardée : ${nativeFilename}`);
   }
 
   // Initialiser

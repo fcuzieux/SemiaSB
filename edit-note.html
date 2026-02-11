@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur de Note - SemiaSB</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="lucide.min.js"></script>
+    <style>
+        html,
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            overflow-y: auto;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .editor-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 20px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--primary);
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            padding: 12px;
+            font-family: inherit;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        input[type="text"] {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        /* Toolbar Style */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding: 8px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            align-items: center;
+        }
+
+        .toolbar button {
+            background: transparent;
+            border: none;
+            color: #cbd5e1;
+            padding: 6px;
+            cursor: pointer;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            min-width: 32px;
+            height: 32px;
+        }
+
+        .toolbar button:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .toolbar .divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 0 5px;
+        }
+
+        .editor {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0 0 8px 8px;
+            color: white;
+            padding: 15px;
+            min-height: 150px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            line-height: 1.6;
+        }
+
+        .editor:focus {
+            outline: 2px solid var(--primary);
+            border-color: transparent;
+        }
+
+        .editor blockquote {
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            font-style: italic;
+            color: #cbd5e1;
+            position: relative;
+        }
+
+        .editor blockquote::before {
+            content: '"';
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            font-size: 2em;
+            color: rgba(255, 255, 255, 0.2);
+            background: #0f172a;
+            padding: 0 5px;
+            line-height: 1;
+        }
+
+        .task-item {
+            margin: 8px 0;
+        }
+
+        .task-item input[type="checkbox"] {
+            accent-color: #6366f1;
+            cursor: pointer;
+        }
+
+        .editor img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .editor table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .editor table td,
+        .editor table th {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 10px;
+        }
+
+        .note-date {
+            font-size: 0.9em;
+            color: #94a3b8;
+            margin-top: -15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .images-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .image-card {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(15, 23, 42, 0.8);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .image-card img {
+            width: 100%;
+            display: block;
+            object-fit: contain;
+            background: #000;
+            max-height: 500px;
+        }
+
+        .image-card .editor {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ccc;
+            padding: 15px;
+            font-size: 0.9em;
+            min-height: 100px;
+            margin-bottom: 0;
+            border-radius: 0;
+        }
+
+        .image-card .editor:focus {
+            outline: none;
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+        }
+
+        .delete-image-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(220, 38, 38, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 2;
+        }
+
+        .delete-image-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .section-label {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="editor-container">
+        <div class="header">
+            <div class="logo-section">
+                <img src="icons/icon48.png" alt="SemiaSB" width="32">
+                <h2>Éditeur de Note</h2>
+            </div>
+            <button id="back-to-files-btn" class="btn-secondary"
+                style="font-size: 11px; padding: 4px 8px; margin-left: 10px; cursor: pointer;">
+                <i data-lucide="layout-grid"
+                    style="width: 14px; height: 14px; margin-right: 4px; vertical-align: text-bottom;"></i>Mes Dossiers
+            </button>
+            <div id="status-msg" style="color: var(--success); display: none;">Modification enregistrée !</div>
+        </div>
+
+        <div>
+            <label class="section-label">Titre</label>
+            <input type="text" id="note-title" placeholder="Titre de la note...">
+            <div class="note-date" id="note-date"></div>
+        </div>
+
+        <div>
+            <label for="note-intro">Introduction</label>
+            <div class="toolbar">
+                <button data-action="bold" title="Gras"><i data-lucide="bold"></i></button>
+                <button data-action="italic" title="Italique"><i data-lucide="italic"></i></button>
+                <button data-action="underline" title="Souligné"><i data-lucide="underline"></i></button>
+                <button data-action="code" title="Code"><i data-lucide="code"></i></button>
+                <div class="divider"></div>
+                <button data-action="h1" title="Titre 1">H1</button>
+                <button data-action="h2" title="Titre 2">H2</button>
+                <div class="divider"></div>
+                <button data-action="list-ul" title="Liste à puces"><i data-lucide="list"></i></button>
+                <button data-action="list-ol" title="Liste numérotée"><i data-lucide="list-ordered"></i></button>
+                <button data-action="checklist" title="Liste de tâches"><i data-lucide="check-square"></i></button>
+                <div class="divider"></div>
+                <button data-action="quote" title="Citation"><i data-lucide="quote"></i></button>
+                <button data-action="hr" title="Ligne horizontale"><i data-lucide="minus"></i></button>
+                <button data-action="table" title="Tableau"><i data-lucide="table"></i></button>
+                <div class="divider"></div>
+                <button data-action="image" title="Insérer une image par URL"><i data-lucide="image"></i></button>
+                <div class="divider"></div>
+                <button data-action="undo" title="Annuler"><i data-lucide="undo-2"></i></button>
+                <button data-action="redo" title="Refaire"><i data-lucide="redo-2"></i></button>
+            </div>
+            <div id="note-intro" class="editor" contenteditable="true"></div>
+
+            <label>Captures</label>
+            <div id="images-grid" class="images-grid">
+                <!-- Images will be injected here -->
+            </div>
+
+            <label for="note-conclusion">Conclusion</label>
+            <div class="toolbar">
+                <button data-action="bold" title="Gras"><i data-lucide="bold"></i></button>
+                <button data-action="italic" title="Italique"><i data-lucide="italic"></i></button>
+                <button data-action="underline" title="Souligné"><i data-lucide="underline"></i></button>
+                <button data-action="code" title="Code"><i data-lucide="code"></i></button>
+                <div class="divider"></div>
+                <button data-action="h1" title="Titre 1">H1</button>
+                <button data-action="h2" title="Titre 2">H2</button>
+                <div class="divider"></div>
+                <button data-action="list-ul" title="Liste à puces"><i data-lucide="list"></i></button>
+                <button data-action="list-ol" title="Liste numérotée"><i data-lucide="list-ordered"></i></button>
+                <button data-action="checklist" title="Liste de tâches"><i data-lucide="check-square"></i></button>
+                <div class="divider"></div>
+                <button data-action="quote" title="Citation"><i data-lucide="quote"></i></button>
+                <button data-action="hr" title="Ligne horizontale"><i data-lucide="minus"></i></button>
+                <button data-action="table" title="Tableau"><i data-lucide="table"></i></button>
+                <div class="divider"></div>
+                <button data-action="image" title="Insérer une image par URL"><i data-lucide="image"></i></button>
+                <div class="divider"></div>
+                <button data-action="undo" title="Annuler"><i data-lucide="undo-2"></i></button>
+                <button data-action="redo" title="Refaire"><i data-lucide="redo-2"></i></button>
+            </div>
+            <div id="note-conclusion" class="editor" contenteditable="true"></div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-secondary" id="close-btn">Fermer</button>
+            <button class="btn btn-primary" id="save-btn"><i data-lucide="save"></i> Enregistrer</button>
+        </div>
+    </div>
+
+    <script src="editor.js"></script>
+    <script src="edit-note.js"></script>
+</body>
+
+</html>

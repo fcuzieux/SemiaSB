@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éditeur Vidéo - SemiaSB</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="lucide.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            height: 60px;
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+            z-index: 100;
+        }
+
+        .navbar .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #6366f1;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        /* Left Side: Video Player & Info */
+        .player-section {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .video-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .video-info-card {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-title-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            width: 100%;
+            padding: 5px 0;
+            margin-bottom: 10px;
+        }
+
+        .video-title-input:focus {
+            outline: none;
+            border-bottom-color: #6366f1;
+        }
+
+        .video-meta {
+            display: flex;
+            gap: 20px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .ai-tools-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Right Side: Chapters & Transcription */
+        .sidebar-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            min-width: 350px;
+        }
+
+        .tabs-header {
+            display: flex;
+            gap: 2px;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+        }
+
+        .tab-content {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Chapters List */
+        .chapters-list {
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .chapter-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            gap: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 5px;
+        }
+
+        .chapter-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .chapter-time {
+            background: #6366f1;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-family: monospace;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .chapter-title {
+            flex: 1;
+            font-size: 0.9rem;
+        }
+
+        /* Transcription Area */
+        .transcript-area {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+
+        /* Utils */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: #6366f1;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Loading File Prompt */
+        .file-select-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 10;
+        }
+
+        #status-msg {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            background: #10b981;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <img src="icons/icon48.png" alt="SemiaSB" width="28">
+            <span>SemiaSB Video Editor</span>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-secondary" id="close-btn">Fermer</button>
+            <button class="btn btn-primary" id="save-btn"><i data-lucide="save"></i> Enregistrer</button>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <!-- Part Gauche -->
+        <div class="player-section">
+            <div class="video-container" id="player-container">
+                <video id="video-player" controls preload="metadata">
+                    Votre navigateur ne supporte pas la balise vidéo.
+                </video>
+                <div class="file-select-overlay" id="file-overlay">
+                    <i data-lucide="video" style="width: 48px; height: 48px; color: #6366f1; margin-bottom: 15px;"></i>
+                    <h3>Fichier local requis</h3>
+                    <p style="color: #94a3b8; max-width: 300px; margin-bottom: 20px;">
+                        Pour lire cette vidéo, veuillez sélectionner le fichier original sur votre disque (Chrome bloque
+                        l'accès automatique).
+                    </p>
+                    <button class="btn btn-primary" id="select-file-btn">Charger le fichier .webm</button>
+                    <input type="file" id="hidden-file-input" accept="video/webm,text/plain" style="display: none;"
+                        multiple>
+                </div>
+            </div>
+
+            <div class="video-info-card">
+                <input type="text" id="video-title" class="video-title-input" placeholder="Titre de la vidéo...">
+                <div class="video-meta">
+                    <span id="video-date">--/--/----</span>
+                    <span id="video-duration">--:--</span>
+                    <span id="video-id">ID: ---</span>
+                </div>
+
+                <div class="ai-tools-row">
+                    <button class="btn btn-secondary" id="ai-pimp-btn"><i data-lucide="sparkles"></i>📑 Pimper la
+                        transcription</button>
+                    <button class="btn btn-secondary" id="ai-summary-btn"><i data-lucide="sparkles"></i>📑 Synthèse
+                        IA</button>
+                    <button class="btn btn-secondary" id="ai-minutes-btn"><i data-lucide="file-text"></i>📑
+                        Compte-rendu</button>
+                    <button class="btn btn-secondary" id="ai-news-btn"><i data-lucide="file-text"></i>🗞️ Rédige une
+                        News</button>
+                    <button class="btn btn-secondary" id="ai-chat-btn"><i data-lucide="message-square"></i> Chatter avec
+                        la vidéo</button>
+                </div>
+
+                <div id="ai-minutes-output"
+                    style="margin-top: 20px; display: none; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <h4 style="margin:0; color:#818cf8;">Rapport IA</h4>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
+                            id="close-ai-btn">X</button>
+                    </div>
+                    <div id="ai-output-content" class="markdown-body" style="font-size: 0.9rem; line-height: 1.5;">
+                    </div>
+                </div>
+                <!-- Custom Question Area -->
+                <div style="margin-top: 16px; position:relative;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <label style="font-size:12px; font-weight:bold;">Ta question sur la transcription</label>
+
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <select id="prompt-helper-select" style="font-size:11px; padding:4px 8px;">
+                                <option value="minutes">Compte rendu IA</option>
+                                <option value="summary">📑 Résumé structuré</option>
+                                <option value="news">🗞️ Rédige une News</option>
+                                <option value="pimp">✨ Amélioration de la transcription</option>
+                            </select>
+                            <button id="import-prompt-btn" style="font-size:10px; padding:4px 8px;"
+                                title="Importer ce prompt dans la zone de texte">
+                                📥 Importer
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="ai-question" placeholder="Ex: Résume cette transcription en 3 points..."></textarea>
+                    <!-- Bouton envoyer -->
+                    <button id="ai-analyze-btn" type="button"
+                        style="position:absolute; right:5px; bottom:5px; padding: 4px;">
+                        ✨➤
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Part Droite -->
+        <div class="sidebar-section">
+            <div class="tabs-header">
+                <button class="tab-btn active" data-tab="chapters">Chapitres</button>
+                <button class="tab-btn" data-tab="transcript">Transcription</button>
+            </div>
+
+            <div class="tab-content">
+                <div id="chapters-content" class="chapters-list">
+                    <!-- Chapitres injectés -->
+                </div>
+                <div id="transcript-content" class="transcript-area" style="display: none; height: 100%;">
+                    <div id="transcript-placeholder"
+                        style="color: #64748b; font-style: italic; text-align: center; margin-top: 50px;">
+                        Transcription non disponible directement (Chargez le fichier .txt associé).
+                    </div>
+                    <textarea id="liveTranscript"
+                        style="width: 100%; height: 100%; background: transparent; border: none; color: inherit; resize: none; font-family: inherit; font-size: inherit; outline: none; display: none;"
+                        placeholder="Collez ici la transcription ou chargez le fichier .txt..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="status-msg">Action réussie !</div>
+
+    <script src="ai/ai-utils.js"></script>
+    <script src="ai/ai-providers.js"></script>
+    <script src="ai/ai-minutes.js"></script>
+    <script src="capture-storage.js"></script>
+    <script src="edit-video.js"></script>
+</body>
+
+</html>

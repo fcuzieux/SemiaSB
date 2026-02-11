@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <title>SemiaSB</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons (local) -->
+  <script src="lucide.min.js"></script>
+</head>
+
+<body>
+  <div class="app-layout">
+    <!-- Menu latéral avec icônes -->
+    <nav class="sidebar">
+      <div class="sidebar-header">
+        <h2>SemiaSB</h2>
+        <img src="icons/icon48.png" alt="Logo">
+        <h4>by LID</h4>
+      </div>
+
+      <div class="sidebar-menu">
+        <button class="menu-item" data-view="Video-Capture" title="Video Capture">
+          <i data-lucide="video"></i>
+        </button>
+
+        <button class="menu-item active" data-view="Note-Capture" title="Note Capture">
+          <i data-lucide="file-text"></i>
+        </button>
+
+        <button class="menu-item" data-view="Ask-Semia" title="Ask an IA">
+          <i data-lucide="brain"></i>
+        </button>
+
+        <button class="menu-item" data-view="folder" title="Dossier">
+          <i data-lucide="folder"></i>
+        </button>
+
+        <button class="menu-item" data-view="settings" title="Paramètres">
+          <i data-lucide="settings"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Zone de contenu principal -->
+    <main class="content-area">
+      <!-- Vue: Video Capture -->
+      <div id="view-Video-Capture" class="view-container">
+        <div class="view-header">
+          <h3>🎞 Video Capture</h3>
+          <p class="view-description">Enregistrez l'audio et la vidéo d'un onglet</p>
+        </div>
+
+        <div class="view-content" id="video-warning-container">
+          <div id="video-warning"
+            style="padding:12px; border-radius:6px; border:1px solid #f59e0b; background:#fffbeb; color:#92400e; font-size:13px;">
+            ⚠️ Sous Firefox, vous ne pouvez utiliser que la fonction capture.html qui devrait s'être ouverte en pleine
+            page pour la capture vidéo d’onglet ou d'une fenêtre.
+          </div>
+        </div>
+        <div class="view-content" id="video-chrome-container">
+          <label><i data-lucide="mic" style="width: 18px; height: 18px;"></i>
+            <input type="checkbox" id="captureAudio" checked>
+            Capturer l'audio
+          </label>
+          <label><i data-lucide="video" style="width: 18px; height: 18px;"></i>
+            <input type="checkbox" id="captureVideo" checked>
+            Capturer la vidéo
+          </label>
+          <label><i data-lucide="captions" style="width: 18px; height: 18px;"></i>
+            <input type="checkbox" id="liveTranscription" checked disabled>
+            Live transcription (Not yet but soon I hope
+            😅)
+          </label>
+          <label style="display: block; margin-top: 15px;">
+            <i data-lucide="file-video" style="width: 18px; height: 18px;"></i>
+            Titre de la vidéo
+          </label>
+          <input type="text" id="videoTitle" value="Capture-video" placeholder="Nom de la vidéo..."
+            style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+          <div class="row">
+            <button id="startCapture">Démarrer</button>
+            <button id="stopCapture" disabled>Arrêter</button>
+          </div>
+
+          <video id="preview" autoplay muted playsinline></video>
+          <div id="status" style="display: none;"></div>
+          <!-- Zone de chapitrage (visible uniquement pendant l'enregistrement) -->
+          <div id="chapter-controls" style="display: none; margin-top: 15px;">
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+              <button id="addChapterBtn" style="display: flex; align-items: center; gap: 5px; padding: 8px 12px;">
+                <i data-lucide="file-clock" style="width: 18px; height: 18px;"></i>
+                Ajouter un chapitre
+              </button>
+            </div>
+
+            <!-- Formulaire de saisie du chapitre (masqué par défaut) -->
+            <div id="chapter-input-form"
+              style="display: none; margin-bottom: 15px; padding: 10px; background: #f9fafb; border-radius: 6px; border: 1px solid var(--border-color);">
+              <label style="display: block; margin-bottom: 5px; font-weight: 500;">Nom du chapitre</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="chapterNameInput" placeholder="Ex: Introduction, Démonstration..."
+                  style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                <button id="validateChapterBtn" type="button"
+                  style="padding: 8px 15px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">✓
+                  Valider</button>
+                <button id="cancelChapterBtn" type="button"
+                  style="padding: 8px 15px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">✗
+                  Annuler</button>
+              </div>
+            </div>
+
+            <!-- Liste des chapitres -->
+            <div id="chapters-list" style="margin-top: 10px;">
+              <h4 style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">📑 Chapitres enregistrés :
+              </h4>
+              <div id="chapters-container" style="max-height: 200px; overflow-y: auto;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vue: Note-Capture -->
+      <div id="view-Note-Capture" class="view-container active">
+        <div class="view-header capture-header">
+          <h3>📝 Note Capture <button id="captureScreenshot">📸 Capturer</button></h3>
+          <p class="view-description">Capturez et commentez une note</p>
+        </div>
+        <div class="view-content">
+          <p class="view-description">📸 Capturer une nouvelle note</p>
+          <br>
+          <p class="view-description">Indiquer le titre de la note, puis cliquer sur "📸 Capturer" pour lancer une
+            nouvelle note 😁</p>
+          <br>
+          <label>
+            Titre de la Note
+          </label>
+          <input type="text" id="noteTitle" placeholder="Titre de ma note..."
+            style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+
+          <label>
+            Introduction de la Note
+          </label>
+          <div class="toolbar">
+            <button data-action="bold">B</button>
+            <button data-action="italic"><em>I</em></button>
+            <button data-action="underline"><u>U</u></button>
+
+            <button data-action="text-color" data-color="#e11d48">A</button>
+            <button data-action="bg-color" data-color="#facc15">A</button>
+
+            <!-- <button data-action="font-bigger">A+</button>
+              <button data-action="font-smaller">A-</button> -->
+          </div>
+          <div class="editor" id="noteIntro" contenteditable="true"
+            style="border:1px solid #ccc; min-height:120px; padding:8px;">
+            Réunion capturée avec SemiaSB by LID...
+          </div>
+
+          <!-- Liste des captures -->
+          <div id="capturesList"></div>
+
+
+          <!-- <div class="row" id="exportRow" style="display: none;">
+            <label>
+              Conclusion de la Note
+              <textarea id="noteConclusion" placeholder="Ex: Conclusion de la réunion...Actions à entreprendre..."
+                style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            </textarea>
+            </label> -->
+          <div class="row" id="exportRow" style="display: none;">
+            <label>
+              Conclusion de la Note
+            </label>
+            <div class="toolbar">
+              <button data-action="bold">B</button>
+              <button data-action="italic"><em>I</em></button>
+              <button data-action="underline"><u>U</u></button>
+
+              <button data-action="text-color" data-color="#e11d48">A</button>
+              <button data-action="bg-color" data-color="#facc15">A</button>
+
+              <!-- <button data-action="font-bigger">A+</button>
+              <button data-action="font-smaller">A-</button> -->
+            </div>
+            <div class="editor" id="noteConclusion" contenteditable="true"
+              style="border:1px solid #ccc; min-height:120px; padding:8px;">
+              Réunion capturée avec SemiaSB by LID...
+            </div>
+            <!-- Bouton d'export -->
+            <button id="exportNote" class="export-btn">💾 Enregistrer la note</button>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Vue: Folder -->
+      <div id="view-folder" class="view-container">
+
+        <div class="view-header">
+          <h3>📂 Mes Dossiers</h3>
+          <p class="view-description">Gestion des dossiers</p>
+        </div>
+        <div class="view-content">
+          <h3>Mes Notes</h3>
+
+          <!-- Liste des captures -->
+          <div id="notesList"></div>
+
+        </div>
+        <div class="view-content">
+          <h3>Mes Vidéos</h3>
+
+          <!-- Liste des captures -->
+          <div id="videosList"></div>
+
+        </div>
+      </div>
+
+
+      <!-- Vue: Ask-Semia -->
+      <div id="view-Ask-Semia" class="view-container">
+        <div class="view-header">
+          <h3>🧠 Ask an IA</h3>
+          <p class="view-description">Toujours à votre service, mais il faut quand même penser à paramétrer vos IA 😉
+          </p>
+        </div>
+
+        <!-- Menu principal des outils IA -->
+        <div class="view-content">
+          <h2><i data-lucide="wrench"></i> Outils IA</h2>
+          <div class="tools-grid">
+            <div class="tool-card" data-target="view-Ask-Webpage" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="scan-search"></i></div>
+              <div class="tool-info">
+                <h3>Analyse IA de la page active</h3>
+              </div>
+              <span class="hot-badge">🔥</span>
+            </div>
+            <div class="tool-card" data-target="view-Chat-IA" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="message-circle-code"></i></div>
+              <div class="tool-info">
+                <h3>Chat IA</h3>
+              </div>
+            </div>
+            <div class="tool-card" data-target="view-Translation-IA" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="languages"></i></div>
+              <div class="tool-info">
+                <h3>Traduction IA</h3>
+              </div>
+            </div>
+            <div class="tool-card" data-target="view-Ecrire-IA" style="cursor: pointer;">
+              <div class="tool-icon"><i data-lucide="pencil"></i></div>
+              <div class="tool-info">
+                <h3>Écrire-Répondre IA</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sous-vue: Analyse de page -->
+        <div id="view-Ask-Webpage" class="view-content" style="display: none;">
+          <h3><i data-lucide="scan-search" style="color: #8b5cf6;"></i> Analyse IA de la page active</h3>
+          <p class="view-description">📄 Lire la page pour vérifier que l'IA comprend bien le contexte</p>
+          <br>
+          <p class="view-description">✨ Questionner l'IA</p>
+          <br>
+          <div class="ai-controls">
+            <button id="ai-scrape-btn"
+              style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">📄 Lire la
+              page</button>
+            <button id="ai-scrape-multi-btn"
+              style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary); margin-left:8px;">📑
+              Lire plusieurs pages</button>
+            <div id="ai-status"
+              style="display:none; margin-top: 8px; padding: 8px; border-radius: 6px; font-size: 12px;">
+            </div>
+            <!-- Container for multi-page selection -->
+            <div id="multi-page-selection-container"
+              style="display:none; margin-top: 10px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: #f9fafb;">
+              <h4 style="margin: 0 0 10px 0; font-size: 14px;">Sélectionnez les pages à inclure :</h4>
+              <div id="tabs-list-container" style="max-height: 150px; overflow-y: auto; margin-bottom: 10px;">
+                <!-- Checkboxes will be injected here -->
+              </div>
+              <button id="confirm-multi-scrape-btn" style="width: 100%; font-size: 13px;">Valider la sélection</button>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px; position:relative;">
+            <label>Ta question</label>
+            <textarea id="ai-question" placeholder="Ex: Résume cette page en 3 points..."
+              style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;"></textarea>
+            <!-- Bouton envoyer -->
+            <button id="ai-analyze-btn" type="button" style="position:absolute; right:5px; bottom:5px;
+                   border:none; background:transparent; cursor:pointer; color: #8b5cf6;">
+              ✨➤
+            </button>
+          </div>
+
+          <!-- <div class="row">
+            <button id="ai-analyze-btn" disabled>✨ Analyser avec IA</button>
+          </div> -->
+
+          <div id="ai-answer" style="margin-top: 20px; line-height: 1.6; font-size: 14px;"></div>
+        </div>
+
+        <!-- Sous-vue: Chat IA -->
+        <div id="view-Chat-IA" class="view-content" style="display: none;">
+          <h3><i data-lucide="message-circle-code" style="color: #8b5cf6;"></i> Salut,
+            Comment puis-je vous aider aujourd'hui ?</h3>
+          <p>💬 Discutez avec l'IA. L'historique de conversation est conservé pour un contexte continu. (Ctrl+Entrée
+            pour envoyer)</p>
+          <div style="position:relative;">
+            <textarea id="ai-text-to-chat" placeholder="Ex: Que peux-tu faire pour moi aujourd'hui ?" style="width:100%; min-height:80px; padding:10px 40px 10px 10px;
+                   border:1px solid var(--border-color);
+                   border-radius:var(--radius); resize:vertical;"></textarea>
+
+            <!-- Bouton envoyer -->
+            <button id="ai-chat-btn" type="button" style="position:absolute; right:5px; bottom:5px;
+                   border:none; background:transparent; cursor:pointer; color: #8b5cf6;">
+              ✨➤
+            </button>
+          </div>
+          <div class="row">
+            <button id="ai-clear-history-btn"
+              style="background: #fff; border: 2px solid var(--border-color); color: var(--text-secondary);">🗑️ Effacer
+              l'historique</button>
+          </div>
+
+          <div id="ai-answer-chat"
+            style="margin-top: 20px; line-height: 1.6; font-size: 14px; max-height: 400px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- Sous-vue: Traduction IA -->
+        <div id="view-Translation-IA" class="view-content" style="display: none;">
+          <h3><i data-lucide="languages" style="color: #8b5cf6;"></i> Traduction IA</h3>
+          <p>Demander à l'IA de traduire une phrase ou un texte</p>
+          <label>
+            Langue d'origine
+            <select id="ai-source-language">
+              <option value="Détection automatique">Détection automatique</option>
+              <option value="français">Français</option>
+              <option value="anglais">Anglais</option>
+              <option value="allemand">Allemand</option>
+              <option value="espagnol">Espagnol</option>
+              <option value="italien">Italien</option>
+            </select>
+            <span>vers</span>
+            <select id="ai-target-language">
+              <option value="français">Français</option>
+              <option value="anglais">Anglais</option>
+              <option value="allemand">Allemand</option>
+              <option value="espagnol">Espagnol</option>
+              <option value="italien">Italien</option>
+            </select>
+          </label>
+
+          <textarea id="ai-text-to-translate"
+            placeholder="Ex: Ce n\'est pas l\'IA qui pense trop, c\'est nous qui pensons trop peu à ce qu\'elle pourrait devenir...."
+            style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); resize: vertical;"></textarea>
+          <button id="ai-translate-btn">✨ Traduire avec IA</button> <button id="ai-dictionary-btn">✨ Dictionnaire
+            IA</button>
+          <div id="ai-translation" style="margin-top: 20px; line-height: 1.6; font-size: 14px;"></div>
+        </div>
+
+        <!-- Sous-vue: Écrire IA -->
+        <div id="view-Ecrire-IA" class="view-content" style="display: none;">
+          <h3>Écrire/Répondre avec l'IA</h3>
+          <p>Cette fonctionnalité arrive bientôt...</p>
+        </div>
+      </div>
+
+      <!-- Vue: Paramètres -->
+      <div id="view-settings" class="view-container">
+        <div class="view-header">
+          <h3>⚙️ Paramètres</h3>
+          <p class="view-description">Configuration de l'extension</p>
+        </div>
+        <div class="view-content">
+          <h4 style="margin-bottom: 15px; color: var(--text-primary);">🤖 Configuration IA</h4>
+
+          <label>
+            Fournisseur IA
+            <select id="settings-provider">
+              <option value="semia">SEMIA (gpt-oss:120b)</option>
+              <option value="mistral">Mistral (open-mistral-nemo)</option>
+              <option value="openai">OpenAI (GPT-4o/Mini)</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="anthropic">Anthropic Claude</option>
+            </select>
+          </label>
+
+          <label>
+            🔑Cl API
+            <input type="password" id="settings-api-key" placeholder="sk-..."
+              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+          </label>
+
+          <label>
+            Modèle (Optionnel)
+            <input type="text" id="settings-model" placeholder="Ex: gpt-4o-mini"
+              style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius);">
+            <small style="color: var(--text-secondary); font-size: 11px;">Laissez vide pour utiliser le modèle par
+              défaut.</small>
+          </label>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid var(--border-color);">
+
+          <h4 style="margin-bottom: 15px; color: var(--text-primary);">💾 Sauvegardes</h4>
+
+          <label>
+            Dossier de sauvegarde par défaut
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+              <input type="text" id="settings-backup-folder" placeholder="Aucun dossier sélectionné" readonly
+                style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius); background: #f9fafb; cursor: not-allowed;">
+              <button id="select-folder-btn" style="padding: 10px 15px; white-space: nowrap;">📁 Parcourir</button>
+            </div>
+            <small style="color: var(--text-secondary); font-size: 11px;">
+              Dossier utilisé par défaut pour enregistrer les notes et vidéos capturées.
+            </small>
+          </label>
+
+          <div class="row" style="margin-top: 30px;">
+            <button id="settings-save-btn"><i data-lucide="save"></i> Sauvegarder tous les paramètres</button>
+          </div>
+          <div id="settings-status" style="margin-top: 10px; text-align: center; font-size: 13px; min-height: 20px;">
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="settings.js"></script>
+  <script src="note-capture.js"></script>
+
+  <!-- AI Modules (order matters: utils -> providers -> features -> main) -->
+  <script src="ai/ai-utils.js"></script>
+  <script src="ai/ai-providers.js"></script>
+  <script src="ai/ai-analyze.js"></script>
+  <script src="ai/ai-translate.js"></script>
+  <script src="ai/ai-chat.js"></script>
+  <script src="ask-semia-new.js"></script>
+
+  <script src="sidepanel.js"></script>
+  <script src="folder-view.js"></script>
+  <script src="editor.js"></script>
+
+  // Redirection Firefox vers capture.html
+  <script src="firefox-redirect.js"></script>
+
+
+
+</body>
+
+</html>

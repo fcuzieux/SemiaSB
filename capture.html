@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Capture écran SemiaSB</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+  <!-- Lucide Icons (local) -->
+  <script src="lucide.min.js"></script>
+  <script src="capture-lucide.js"></script>
+  <style>
+    /* Specific overrides for capture page layout if needed */
+    html {
+      overflow-y: auto;
+    }
+
+    body {
+      padding: 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    /* Mapping legacy inline styles to classes for smoother transition */
+    .settings-panel {
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-top: 12px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .settings-panel h4,
+    .settings-panel label.header-label {
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .stt-option {
+      cursor: pointer;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .stt-option:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .stt-option input[type="radio"] {
+      width: 16px;
+      height: 16px;
+    }
+
+    .spinner {
+      animation: spin 2s infinite linear;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Markdown override for dark mode */
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3 {
+      color: var(--text-main);
+    }
+
+    .markdown-body p,
+    .markdown-body li {
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="view-header">
+    <h3>🎞 Capture Vidéo SemiaSB <i data-lucide="square-chart-gantt"></i></h3>
+    <p class="view-description">Enregistrez l'audio et la vidéo d'un onglet ou d'une fenêtre (Experimental STT)</p>
+  </div>
+
+  <div class="view-content">
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+      <label><i data-lucide="mic"></i><input type="checkbox" id="captureAudio" checked> Capturer l'audio système</label>
+      <label><i data-lucide="mic-2"></i><input type="checkbox" id="captureMic" checked> Capturer le microphone</label>
+      <label><i data-lucide="video"></i><input type="checkbox" id="captureVideo" checked> Capturer la vidéo</label>
+    </div>
+  </div>
+
+  <!-- Sélecteur de moteur de reconnaissance vocale -->
+  <div class="view-content">
+    <label style="display:block; margin-bottom:12px; font-weight:bold;">
+      <i data-lucide="brain"></i>
+      Moteur de reconnaissance vocale
+    </label>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+      <label class="stt-option">
+        <input type="radio" name="sttEngine" id="sttNostt" value="nostt" checked>
+        <i data-lucide="ear-off"></i>
+        <span>Aucune transcription <span style="font-size:11px; opacity: 0.7;">(🤫 pas de transcription)</span></span>
+      </label>
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+      <label style="align-self: center;">🌐</label>
+      <label class="stt-option">
+        <input type="radio" name="sttEngine" id="sttWebSpeech" value="webspeech">
+        <i data-lucide="cloud"></i>
+        <span>Web Speech <span style="color:#f87171; font-size:11px;">(☁️ non local)</span></span>
+      </label>
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+      <label style="align-self: center;"><i data-lucide="hat-glasses"></i></label>
+      <label class="stt-option">
+        <input type="radio" name="sttEngine" id="sttVosk" value="vosk">
+        <i data-lucide="lock"></i>
+        <span>Vosk <span style="color:#4ade80; font-size:11px;">(🔒 local)</span></span>
+      </label>
+      <label class="stt-option">
+        <input type="radio" name="sttEngine" id="sttWhisper" value="whisper">
+        <i data-lucide="zap"></i>
+        <span>Whisper <span style="color:#f472b6; font-size:11px;">(🤖 AI Local)</span></span>
+      </label>
+      <label class="stt-option">
+        <input type="radio" name="sttEngine" id="sttParakeet" value="parakeet">
+        <i data-lucide="cpu"></i>
+        <span>NVIDIA Parakeet <span style="color:#fbbf24; font-size:11px;">(🦅 WebGPU)</span></span>
+      </label>
+    </div>
+
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <label style="align-self: center;">🧪</label>
+      <label class="stt-option">
+        <input type="radio" name="sttEngine" id="sttWLK" value="wlk">
+        <i data-lucide="server"></i>
+        <span>WLK <span style="color:#a78bfa; font-size:11px;">(⚡ Python)</span></span>
+      </label>
+    </div>
+
+    <div id="sttInfo"
+      style="margin-top:12px; padding:12px; background:rgba(99, 102, 241, 0.1); border-left:3px solid var(--primary); border-radius:4px; font-size:12px;">
+      <strong>Aucune :</strong> Pas de transcription. 🔇
+    </div>
+
+    <!-- Panneau Réglages WLK -->
+    <div id="wlk-settings-panel" class="settings-panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label class="header-label">⚙️ Réglages WhisperLiveKit (⚡ Python)</label>
+      </div>
+
+      <!-- Gain audio pour WLK -->
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">
+          Gain audio : <span id="wlkGainLabel">1.0</span>
+        </label>
+        <input type="range" id="wlkGain" min="0.5" max="3.0" value="1.0" step="0.1">
+        <div
+          style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-secondary); margin-top:2px;">
+          <span>🔉 Calme</span>
+          <span>🔊 Amplifié</span>
+        </div>
+      </div>
+      <div
+        style="font-size:10px; color:var(--text-secondary); border-top:1px solid var(--glass-border); padding-top:4px;">
+        ⚠️ Augmentez le gain si le serveur ne détecte aucune voix.
+      </div>
+    </div>
+
+    <!-- Panneau Réglages Web Speech -->
+    <div id="webspeech-settings-panel" class="settings-panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label class="header-label" style="color: #f87171;">⚙️ Réglages Web Speech (Cloud ☁️)</label>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-bottom:8px;">
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">Langue</label>
+          <select id="webSpeechLang">
+            <option value="fr-FR" selected>Français (France)</option>
+            <option value="en-US">Anglais (US)</option>
+            <option value="en-GB">Anglais (UK)</option>
+            <option value="es-ES">Espagnol</option>
+            <option value="de-DE">Allemand</option>
+            <option value="it-IT">Italien</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">Hypothèses max.</label>
+          <select id="webSpeechMaxAlternatives">
+            <option value="1" selected>1 (Défaut)</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">Grammaire / Mots clés
+          (Boost)</label>
+        <input type="text" id="webSpeechGrammar" placeholder="ex: Semia, OpenAI, LID...">
+      </div>
+
+      <div style="display:flex; gap:15px;">
+        <label style="font-size:11px; font-weight:bold; display:flex; align-items:center; cursor:pointer;">
+          <input type="checkbox" id="webSpeechInterim" checked style="margin-right:6px;" />
+          Résultats partiels
+        </label>
+        <label style="font-size:11px; font-weight:bold; display:flex; align-items:center; cursor:pointer;">
+          <input type="checkbox" id="webSpeechContinuous" checked style="margin-right:6px;" />
+          Mode continu
+        </label>
+      </div>
+    </div>
+
+    <!-- Panneau Réglages Vosk -->
+    <div id="vosk-settings-panel" class="settings-panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label class="header-label" style="color: #4ade80;">⚙️ Réglages du modèle Vosk</label>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">Modèle</label>
+        <select id="voskModelSelect">
+          <option value="small">Français - Léger (v0.22-small) - Rapide ⚡</option>
+          <option value="large">Français - Complet (v0.22) - Précis 🎯</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:4px;">Grammaire / Mots clés</label>
+        <textarea id="voskGrammar" placeholder="ex: Semia, Antigravity, Intelligence Artificielle..."
+          style="height:40px; resize:none;"></textarea>
+      </div>
+
+      <!-- Réglages avancés -->
+      <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--glass-border);">
+        <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:8px;">⚡ Réglages avancés</label>
+
+        <!-- Taille du buffer audio -->
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">
+            Taille du buffer audio : <span id="voskChunkSizeLabel">Moyen (4096)</span>
+          </label>
+          <input type="range" id="voskChunkSize" min="0" max="2" value="1" step="1">
+        </div>
+
+        <!-- Gain -->
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">
+            Gain audio : <span id="voskGainLabel">1.0</span>
+          </label>
+          <input type="range" id="voskGain" min="0.5" max="2.0" value="1.0" step="0.1">
+        </div>
+
+        <!-- Max alternatives -->
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">Alternatives
+            maximales</label>
+          <select id="voskMaxAlternatives">
+            <option value="1" selected>1 (par défaut)</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+          </select>
+        </div>
+
+        <!-- Enable partial results -->
+        <div style="margin-bottom:4px;">
+          <label style="font-size:11px; font-weight:bold; display:flex; align-items:center; cursor:pointer;">
+            <input type="checkbox" id="voskPartialToggle" checked style="margin-right:6px;" />
+            Activer les résultats partiels en temps réel
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panneau Réglages Whisper -->
+    <div id="whisper-settings-panel" class="settings-panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label class="header-label" style="color: #f472b6;">⚙️ Réglages Whisper (🤖 Local-Worker)</label>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">Langue</label>
+        <select id="whisperLang">
+          <option value="french" selected>Français</option>
+          <option value="english">Anglais</option>
+          <option value="auto">Auto-détection (lent)</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">Tâche</label>
+        <select id="whisperTask">
+          <option value="transcribe" selected>Transcription</option>
+          <option value="translate">Traduction vers l'Anglais</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Panneau Réglages Parakeet -->
+    <div id="parakeet-settings-panel" class="settings-panel" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label class="header-label" style="color: #fbbf24;">⚙️ Réglages NVIDIA Parakeet (WebGPU)</label>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">Modèle</label>
+        <select id="parakeetModelSelect">
+          <option value="parakeet-tdt-0.6b-v3">NVIDIA Parakeet TDT 0.6B (Multilingue) - Recommandé ✨</option>
+          <option value="parakeet-ctc-1.1b-v2">NVIDIA Parakeet TDT 1.1B (Anglais/FR) - Large 🐘</option>
+        </select>
+        <div style="font-size:10px; color:#fbbf24; margin-top:4px;">
+          ⚠️ Premier chargement lourd (~600 Mo). WebGPU fortement recommandé.
+        </div>
+      </div>
+
+      <!-- Réactivité (Taille des chunks) -->
+      <div>
+        <label style="font-size:11px; font-weight:bold; display:block; margin-bottom:4px;">
+          Réactivité (Chunks) : <span id="parakeetChunkLabel">Standard (2.0s)</span>
+        </label>
+        <input type="range" id="parakeetChunkSize" min="1" max="5" value="2" step="1">
+        <div style="display:flex; justify-content:space-between; font-size:10px; color:#fbbf24; margin-top:2px;">
+          <span>⚡ Rapide</span>
+          <span>🎯 Précis</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <button id="startCapture"> <i data-lucide="play"></i> Démarrer</button>
+    <button id="stopCapture" disabled><i data-lucide="stop"></i> Arrêter</button>
+  </div>
+
+  <div id="recovery-banner" class="settings-panel"
+    style="display:none; border-color: #f59e0b; background: rgba(245, 158, 11, 0.1);">
+    <p style="margin:0 0 8px 0; font-weight:bold; color: #fbbf24;">⚠️ Un enregistrement précédent semble avoir été
+      interrompu.</p>
+    <button id="recoverBtn" style="background:#f59e0b; color: white;">
+      <i data-lucide="download"></i> Récupérer l'enregistrement (.webm)
+    </button>
+    <button id="discardRecoverBtn" style="background:transparent; border:1px solid #f59e0b; color: #fbbf24;">
+      Ignorer
+    </button>
+  </div>
+
+  <div class="view-content" style="margin-top: 15px;">
+    <label style="display: block; margin-top: 15px;">
+      <i data-lucide="file-video"></i>
+      Titre de la vidéo
+    </label>
+    <input type="text" id="videoTitle" value="Capture-video" placeholder="Nom de la vidéo..." />
+  </div>
+
+  <div id="status" class="status-box" style="display:none;"></div>
+
+  <div id="ai-status" class="status-box" style="display:none;"></div>
+
+  <!-- Barre de progression Vosk -->
+  <div id="vosk-progress-container" class="settings-panel" style="display:none;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <div style="display:flex; align-items:center;">
+        <i data-lucide="sparkles" style="width: 20px; height: 20px; margin-right:8px; color:var(--primary);"></i>
+        <span id="vosk-progress-text" style="font-size:14px;">Chargement du modèle...</span>
+      </div>
+      <button id="vosk-cancel-btn" style="padding:4px 12px; background:#ef4444; color:white;">
+        <i data-lucide="x"></i> Annuler
+      </button>
+    </div>
+    <div
+      style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden; position:relative;">
+      <div id="vosk-progress-bar" style="width:0%; height:100%; background:var(--primary); transition:width 0.3s ease;">
+      </div>
+    </div>
+    <div style="text-align: right; font-size: 11px; margin-top: 4px; color: var(--text-secondary);"><span
+        id="vosk-progress-percent">0%</span></div>
+  </div>
+
+  <!-- Visualiseur Audio -->
+  <div id="audio-visualizer-container" class="settings-panel" style="display:none;">
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;">
+      <i data-lucide="activity" style="width:16px; height:16px; color:#3b82f6;"></i>
+      <span style="font-size:12px; font-weight:bold; color:var(--text-secondary);">Niveau sonore capturé</span>
+    </div>
+    <canvas id="audio-levels" width="460" height="20"
+      style="width:100%; height:20px; background:rgba(0,0,0,0.3); border-radius:4px;"></canvas>
+  </div>
+
+  <div id="video-container" class="view-content"
+    style="position:relative; display:inline-block; width:100%; max-width:100%; min-width:200px; padding: 0; background: transparent; border: none; box-shadow: none;">
+    <video id="preview" autoplay playsinline muted></video>
+
+    <!-- Icône de source (Tab, Window, Screen) -->
+    <div id="source-icon-container"
+      style="position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); padding:8px; border-radius:50%; display:none; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); width:36px; height:36px; z-index:100;">
+      <i id="icon-tab" data-lucide="chrome" style="color:#60a5fa; display:none;"></i>
+      <i id="icon-window" data-lucide="layout" style="color:#9ca3af; display:none;"></i>
+      <i id="icon-screen" data-lucide="monitor" style="color:#9ca3af; display:none;"></i>
+    </div>
+
+    <!-- Poignée de redimensionnement -->
+    <div id="video-resize-handle"
+      style="position:absolute; bottom:0; right:0; width:20px; height:20px; cursor:nwse-resize; z-index:110; background: linear-gradient(135deg, transparent 50%, rgba(99, 102, 241, 0.5) 50%); border-radius: 0 0 12px 0;">
+      <i data-lucide="grip-horizontal"
+        style="width:12px; height:12px; color:white; position:absolute; bottom:2px; right:2px; transform: rotate(-45deg);"></i>
+    </div>
+  </div>
+
+  <div id="silentModeWrapper" class="view-content" style="display:block; padding: 12px;">
+    <label
+      title="Continuer à tout enregistrer et transcrire mais sans le son! Uniquement disponible pour les onglets Chrome.">
+      <i data-lucide="volume-x" style="color:#f87171;"></i>
+      <input type="checkbox" id="silentMode">
+      Mode silencieux (Activer avant de commencer l'enregistrement)<span id="silentModeTooltip"></span>
+    </label>
+  </div>
+
+  <!-- Container AVEC chapter-controls -->
+  <div id="chapter-controls" class="view-content" style="display:none;">
+    <button id="addChapterBtn">Ajouter un chapitre</button>
+    <div id="chapter-input-form" style="display:none; margin-top:12px;">
+      <div style="display:flex; gap: 8px;">
+        <input id="chapterNameInput" placeholder="Nom du chapitre" />
+        <button id="validateChapterBtn" style="background:#10b981;">Valider</button>
+        <button id="cancelChapterBtn"
+          style="background:transparent; border:1px solid #ef4444; color: #ef4444;">Annuler</button>
+      </div>
+    </div>
+    <div id="chapters-container" style="margin-top:16px;"></div>
+
+
+    <textarea id="liveTranscript" placeholder="Transcription en temps réel..."
+      style="margin-top: 16px; height: 200px; resize: vertical;"></textarea>
+
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:12px;">
+      <button id="btn-minutes" class="secondary-btn" title="Générer un compte rendu avec l'IA">
+        <i data-lucide="file-check-2"></i> Compte rendu IA
+      </button>
+      <button id="btn-ai-resume" class="secondary-btn" title="Générer un résumé structuré">
+        <i data-lucide="file-text"></i> 📑 Résumer structuré
+      </button>
+      <button id="btn-ai-news" class="secondary-btn" title="Rédiger une news">
+        <i data-lucide="newspaper"></i> 🗞️ Rédige une News
+      </button>
+    </div>
+
+    <!-- Custom Question Area -->
+    <div style="margin-top: 16px; position:relative;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <label style="font-size:12px; font-weight:bold;">Ta question sur la transcription</label>
+
+        <div style="display:flex; align-items:center; gap:12px;">
+          <select id="prompt-helper-select" style="font-size:11px; padding:4px 8px;">
+            <option value="minutes">Compte rendu IA</option>
+            <option value="summary">📑 Résumé structuré</option>
+            <option value="news">🗞️ Rédige une News</option>
+          </select>
+          <button id="import-prompt-btn" style="font-size:10px; padding:4px 8px;"
+            title="Importer ce prompt dans la zone de texte">
+            📥 Importer
+          </button>
+        </div>
+      </div>
+      <textarea id="ai-question" placeholder="Ex: Résume cette transcription en 3 points..."></textarea>
+      <!-- Bouton envoyer -->
+      <button id="ai-analyze-btn" type="button" style="position:absolute; right:5px; bottom:5px; padding: 4px;">
+        ✨➤
+      </button>
+    </div>
+
+    <!-- Zone résultat Minutes -->
+    <div id="ai-minutes-output" class="view-content"
+      style="display:none; margin-top:10px; min-height:100px; position:relative;">
+      <button id="copy-ai-output" style="position:absolute; top:8px; right:8px; z-index:10;" title="Copier la réponse">
+        <i data-lucide="copy"></i>
+      </button>
+      <div id="ai-output-content" class="markdown-body"></div>
+    </div>
+
+  </div>
+
+  <!-- Bibliothèque Vosk (chargée conditionnellement) -->
+  <!-- <script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.3/dist/vosk.js"></script> -->
+  <!-- Bibliothèque Vosk (Mode Local) -->
+  <script src="vosk.js"></script>
+
+  <!-- Bibliothèque ts-ebml pour réparer les métadonnées WebM -->
+  <script src="EBML.min.js"></script>
+
+  <!-- Scripts de reconnaissance vocale -->
+  <script src="capture-stt-simple.js"></script> <!-- Web Speech API -->
+  <script src="capture-stt.js"></script> <!-- Vosk -->
+  <script src="capture-stt-whisper.js"></script> <!-- Whisper (Local AI) -->
+  <script src="capture-stt-wlk.js"></script> <!-- WhisperLiveKit (Python Server) -->
+  <script src="capture-stt-parakeet.js" type="module"></script> <!-- NVIDIA Parakeet (WebGPU) -->
+
+  <!-- Scripts IA -->
+  <script src="ai/ai-utils.js"></script>
+  <script src="ai/ai-providers.js"></script>
+  <script src="ai/ai-minutes.js"></script>
+
+  <!-- Scripts de stockage robuste -->
+  <script src="capture-storage.js"></script>
+
+  <!-- Script principal de capture -->
+  <script src="capture.js"></script>
+
+
+  <!-- Modal de Traitement Vidéo -->
+  <div id="processing-modal">
+    <div class="processing-card">
+      <div style="margin-bottom: 20px;">
+        <i data-lucide="loader-2" class="spinner" style="width: 48px; height: 48px; color: var(--primary);"></i>
+      </div>
+      <h3 style="color: white; margin-bottom: 15px; font-size: 18px;">Traitement en cours...</h3>
+      <p id="processing-step" style="color: var(--text-secondary); margin-bottom: 25px; font-size: 14px;">Optimisation
+        de la vidéo...</p>
+
+      <div class="processing-warning">
+        <div style="color: #fca5a5; font-weight: bold; font-size: 14px; margin-bottom: 5px;">
+          <i data-lucide="alert-triangle" style="width:16px; height:16px; vertical-align:text-bottom;"></i> ATTENTION
+        </div>
+        <div style="color: #fca5a5; font-size: 13px;">
+          Ne fermez surtout pas cet onglet tant que le téléchargement n'a pas commencé !
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- bridge.js est injecté automatiquement par le manifest -->
+</body>
+
+</html>
