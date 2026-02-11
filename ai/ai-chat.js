@@ -90,14 +90,14 @@ function displayChatHistory(container) {
 
         if (msg.role === 'user') {
             html += `
-                <div style="margin: 15px 0; padding: 10px; background: #e3f2fd; border-left: 3px solid #2196f3; border-radius: 4px;">
+                <div style="margin: 15px 0; padding: 10px; background: #323f47ff; border-left: 3px solid #2196f3; border-radius: 4px;">
                     <strong>👤 Vous :</strong><br>
                     ${formatText(msg.content)}
                 </div>
             `;
         } else if (msg.role === 'assistant') {
             html += `
-                <div style="margin: 15px 0; padding: 10px; background: #f3e5f5; border-left: 3px solid #9c27b0; border-radius: 4px;">
+                <div style="margin: 15px 0; padding: 10px; background: #49334dff; border-left: 3px solid #9c27b0; border-radius: 4px;">
                     <strong>🤖 Assistant :</strong><br>
                     ${formatText(msg.content)}
                 </div>
