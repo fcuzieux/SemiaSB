@@ -7,7 +7,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Configuration
-$extensionPath = "h:\Developments\SemiaSBChrome"
+$extensionPath = "h:\Developments\SemiaSB"
 $modelsDir = Join-Path $extensionPath "models\fr"
 $tempDir = Join-Path $env:TEMP "vosk-download"
 

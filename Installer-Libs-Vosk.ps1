@@ -1,7 +1,7 @@
 # Script pour telecharger les bibliotheques Vosk pour un usage hors ligne
 
 $baseUrl = "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.3/dist"
-$destPath = "h:\Developments\SemiaSBChrome"
+$destPath = "h:\Developments\SemiaSB"
 
 $files = @("vosk.js", "vosk.wasm")
 

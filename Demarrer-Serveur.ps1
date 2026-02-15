@@ -7,7 +7,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 $port = 8080
-$path = "h:\Developments\SemiaSBChrome"
+$path = "h:\Developments\SemiaSB"
 
 Write-Host "Demarrage du serveur HTTP..." -ForegroundColor Yellow
 Write-Host "Repertoire: $path" -ForegroundColor Gray
