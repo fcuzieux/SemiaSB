@@ -9,6 +9,7 @@
   <!-- Lucide Icons (local) -->
   <script src="lucide.min.js"></script>
   <script src="capture-lucide.js"></script>
+  <link rel="manifest" href="pwa.manifest.json">
   <style>
     /* Specific overrides for capture page layout if needed */
     html {
@@ -344,6 +345,9 @@
   <div class="row">
     <button id="startCapture"> <i data-lucide="play"></i> Démarrer</button>
     <button id="stopCapture" disabled><i data-lucide="stop"></i> Arrêter</button>
+    <button id="pwaInstallBtn" style="display:none; background:var(--primary); color:white;">
+      <i data-lucide="download-cloud"></i> Installer l'App
+    </button>
   </div>
 
   <div id="recovery-banner" class="settings-panel"

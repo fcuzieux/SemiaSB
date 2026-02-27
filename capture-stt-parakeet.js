@@ -27,6 +27,23 @@ async function initParakeet(modelName = "parakeet-tdt-0.6b-v3") {
     console.log(`[Parakeet] Initialisation du modèle: ${repoId}...`);
     showStatus(`🦅 Chargement NVIDIA Parakeet (${modelName})...`, false);
 
+    // HACK: Masquer chrome.runtime temporairement pour forcer Hub.js (Transformers.js)
+    // à utiliser fetch() standard au lieu de proxy via le background script.
+    // Cela corrige l'erreur "A listener indicated an asynchronous response..." lors du téléchargement.
+    const originalRuntime = window.chrome?.runtime;
+    const isExtension = !!originalRuntime;
+
+    if (isExtension) {
+        // On définit runtime à null de manière sécurisée
+        try {
+            // On tente de masquer sans casser le reste
+            // Note: window.chrome est souvent configurable
+            window.chrome = { ...window.chrome, runtime: null };
+        } catch (e) {
+            console.warn("[Parakeet] Impossible de masquer chrome.runtime:", e);
+        }
+    }
+
     try {
         const config = await getParakeetModel(repoId, {
             ort: ort,
@@ -40,6 +57,11 @@ async function initParakeet(modelName = "parakeet-tdt-0.6b-v3") {
         });
 
         console.log("[Parakeet] Configuration récupérée. Création du modèle...");
+
+        // On peut restaurer le runtime ici si ParakeetModel.fromUrls n'en a pas besoin pour le download
+        // Mais 'config' contient déjà les blobs/urls téléchargés souvent ? 
+        // Vérifions : getParakeetModel fait le download. ParakeetModel.fromUrls instancie.
+
         parakeetModel = await ParakeetModel.fromUrls({
             ...config.urls,
             filenames: config.filenames,
@@ -53,8 +75,12 @@ async function initParakeet(modelName = "parakeet-tdt-0.6b-v3") {
         console.error("[Parakeet] Erreur lors du chargement du modèle:", e);
         showStatus(`⚠️ Erreur chargement Parakeet: ${e.message}`, true);
         hideVoskProgress();
-        // On ne re-throw pas pour éviter que le débogueur s'arrête si "Pause on exceptions" est actif
         return null;
+    } finally {
+        // RESTAURATION IMPÉRATIVE
+        if (isExtension && window.chrome) {
+            window.chrome.runtime = originalRuntime;
+        }
     }
 }
 

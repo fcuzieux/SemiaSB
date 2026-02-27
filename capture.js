@@ -112,13 +112,58 @@ window.addEventListener("message", (event) => {
     extensionBridgeReady = true; // On considère que l'API est prête
     showStatus("✅ Extension SemiaSB prête (Direct)");
   } else {
+    // TENTATIVE PWA : Charger depuis localStorage si pas d'extension
+    console.log("🌐 Contexte Web détecté. Recherche dans localStorage...");
+    try {
+      const savedSettings = localStorage.getItem('semia_settings');
+      if (savedSettings) {
+        extensionSettings = JSON.parse(savedSettings);
+        window.extensionSettings = extensionSettings;
+        console.log("⚙️ Paramètres PWA chargés:", extensionSettings);
+      }
+    } catch (e) {
+      console.warn("Erreur chargement settings PWA:", e);
+    }
+
     // Sinon on attend le bridge (localhost)
     setTimeout(() => {
-      console.log("Creation du handshake (SEMIA_HELLO)...");
-      window.postMessage({ type: "SEMIA_HELLO" }, "*");
+      if (!extensionSettings.aiProvider) { // Si toujours rien chargé
+        console.log("Creation du handshake (SEMIA_HELLO)...");
+        window.postMessage({ type: "SEMIA_HELLO" }, "*");
+      }
     }, 1000);
   }
 })();
+
+// Enregistrement PWA Service Worker + Gestion Installation
+let deferredPrompt;
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('🚀 PWA Service Worker enregistré !', reg.scope))
+      .catch(err => console.log('❌ Échec enregistrement SW:', err));
+  });
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Empêcher Chrome d'afficher le mini-info-bar tout de suite
+    e.preventDefault();
+    // Garder l'événement pour plus tard
+    deferredPrompt = e;
+    // Afficher notre bouton d'installation
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) {
+      installBtn.style.display = 'inline-block';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    console.log('✅ PWA Installée avec succès !');
+    deferredPrompt = null;
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) installBtn.style.display = 'none';
+  });
+}
 
 // Vérification ROBUSTE de la récupération (Sans délai arbitraire)
 async function checkRecovery() {
@@ -228,6 +273,22 @@ async function triggerDownload(url, filename, metadata = null) {
       }
     });
     return;
+  }
+
+  // 1b. Si on est en PWA/Web, on tente de sauvegarder les métadonnées dans localStorage (simulé)
+  if (!api || !api.downloads) {
+    console.log("[Capture] Hors extension, sauvegarde des métadonnées en local...");
+    try {
+      const pwaVideosKey = 'semia_pwa_videos';
+      const pwaVideos = JSON.parse(localStorage.getItem(pwaVideosKey) || '[]');
+      if (metadata && !pwaVideos.some(v => v.id === metadata.id)) {
+        metadata.filename = filename;
+        pwaVideos.push(metadata);
+        localStorage.setItem(pwaVideosKey, JSON.stringify(pwaVideos));
+      }
+    } catch (e) {
+      console.error("Erreur sauvegarde métadonnées PWA:", e);
+    }
   }
 
   // 2. Si on est sur localhost (Bridge), on utilise le transfert par morceaux pour les vidéos
@@ -1156,6 +1217,20 @@ if (startBtn) {
 }
 if (stopBtn) {
   stopBtn.onclick = () => stopRecording();
+}
+
+const pwaInstallBtn = document.getElementById('pwaInstallBtn');
+if (pwaInstallBtn) {
+  pwaInstallBtn.onclick = async () => {
+    if (!deferredPrompt) return;
+    // Afficher le prompt natif
+    deferredPrompt.prompt();
+    // Attendre la réponse
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`L'utilisateur a ${outcome === 'accepted' ? 'accepté' : 'refusé'} l'installation.`);
+    deferredPrompt = null;
+    pwaInstallBtn.style.display = 'none';
+  };
 }
 
 // ===== BINDING CHAPITRES =====

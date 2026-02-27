@@ -1,0 +1,30 @@
+{
+  "name": "SemiaSB Capture",
+  "short_name": "Semia Capture",
+  "description": "Enregistreur d'écran et transcription IA SemiaSB",
+  "start_url": "./capture.html",
+  "id": "./capture.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "icons/icon48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
