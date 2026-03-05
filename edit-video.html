@@ -317,10 +317,24 @@
 
                 <div id="ai-minutes-output"
                     style="margin-top: 20px; display: none; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px; align-items:center;">
                         <h4 style="margin:0; color:#818cf8;">Rapport IA</h4>
-                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
-                            id="close-ai-btn">X</button>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
+                                id="copy-ai-output" title="Copier le rapport">
+                                <i data-lucide="copy" style="width:14px; height:14px;"></i>
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
+                                id="download-md-btn" title="Télécharger (.md)">
+                                <i data-lucide="file-down" style="width:14px; height:14px;"></i> MD
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
+                                id="download-html-btn" title="Télécharger (.html)">
+                                <i data-lucide="file-code" style="width:14px; height:14px;"></i> HTML
+                            </button>
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.7rem;"
+                                id="close-ai-btn">X</button>
+                        </div>
                     </div>
                     <div id="ai-output-content" class="markdown-body" style="font-size: 0.9rem; line-height: 1.5;">
                     </div>

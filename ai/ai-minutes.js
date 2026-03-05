@@ -194,6 +194,67 @@ async function copyAIOutput() {
     }
 }
 
+/**
+ * Télécharge le contenu de l'IA dans un fichier
+ * @param {string} format 'md' ou 'html'
+ */
+function downloadAIOutput(format) {
+    const outputDiv = document.getElementById('ai-minutes-output');
+    const contentDiv = document.getElementById('ai-output-content');
+    const rawText = outputDiv?.dataset.rawResponse;
+    const htmlContent = contentDiv?.innerHTML;
+
+    if (!htmlContent) return;
+
+    let content = "";
+    let extension = "";
+    let mimeType = "";
+
+    if (format === 'md') {
+        content = rawText || contentDiv.innerText;
+        extension = "md";
+        mimeType = "text/markdown";
+    } else {
+        // Envelopper l'HTML pour qu'il soit un document valide
+        content = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport IA - SemiaSB</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; }
+        h1, h2, h3 { color: #4f46e5; }
+        .markdown-body { border: 1px solid #eee; padding: 20px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="markdown-body">
+        ${htmlContent}
+    </div>
+</body>
+</html>`;
+        extension = "html";
+        mimeType = "text/html";
+    }
+
+    // Générer un nom de fichier propre
+    const videoTitle = document.getElementById('video-title')?.value || "rapport-ia";
+    const filename = `${videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-rapport.${extension}`;
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showStatusUtils(`💾 Téléchargement ${extension.toUpperCase()} lancé !`);
+}
+
 // Initialisation des événements
 document.addEventListener('DOMContentLoaded', () => {
     // Bouton Compte rendu classique
@@ -251,5 +312,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyBtn = document.getElementById('copy-ai-output');
     if (copyBtn) {
         copyBtn.addEventListener('click', copyAIOutput);
+    }
+
+    // Boutons de téléchargement
+    const downloadMdBtn = document.getElementById('download-md-btn');
+    const downloadHtmlBtn = document.getElementById('download-html-btn');
+
+    if (downloadMdBtn) {
+        downloadMdBtn.addEventListener('click', () => downloadAIOutput('md'));
+    }
+    if (downloadHtmlBtn) {
+        downloadHtmlBtn.addEventListener('click', () => downloadAIOutput('html'));
     }
 });
