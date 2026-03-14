@@ -376,9 +376,26 @@
 
             <div class="tab-content">
                 <div id="chapters-content" class="chapters-list">
-                    <!-- Chapitres injectés -->
+                    <div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+                        <button class="btn btn-secondary" id="load-chapters-btn"
+                            style="width: 100%; justify-content: center; font-size: 0.8rem;">
+                            <i data-lucide="upload" style="width: 14px; height: 14px;"></i> Charger Chapitres (.json)
+                        </button>
+                        <input type="file" id="chapters-file-input" accept=".json" style="display: none;">
+                    </div>
+                    <div id="chapters-list-inner">
+                        <!-- Chapitres injectés -->
+                    </div>
                 </div>
                 <div id="transcript-content" class="transcript-area" style="display: none; height: 100%;">
+                    <div
+                        style="padding: 0 0 15px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px;">
+                        <button class="btn btn-secondary" id="load-transcript-btn"
+                            style="width: 100%; justify-content: center; font-size: 0.8rem;">
+                            <i data-lucide="upload" style="width: 14px; height: 14px;"></i> Charger Transcription (.txt)
+                        </button>
+                        <input type="file" id="transcript-file-input" accept=".txt" style="display: none;">
+                    </div>
                     <div id="transcript-placeholder"
                         style="color: #64748b; font-style: italic; text-align: center; margin-top: 50px;">
                         Transcription non disponible directement (Chargez le fichier .txt associé).
@@ -390,6 +407,7 @@
             </div>
         </div>
     </div>
+    </div>
 
     <div id="status-msg">Action réussie !</div>
 
@@ -397,6 +415,7 @@
     <script src="ai/ai-providers.js"></script>
     <script src="ai/ai-minutes.js"></script>
     <script src="capture-storage.js"></script>
+    <script src="EBML.min.js"></script>
     <script src="edit-video.js"></script>
 </body>
 

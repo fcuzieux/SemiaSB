@@ -48,9 +48,14 @@
     <main class="content-area">
       <!-- Vue: Video Capture -->
       <div id="view-Video-Capture" class="view-container">
+
         <div class="view-header">
-          <h3>🎞 Video Capture</h3>
-          <p class="view-description">Enregistrez l'audio et la vidéo d'un onglet</p>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h3>🎞 Video Capture</h3>
+              <p class="view-description">Enregistrez l'audio et la vidéo d'un onglet</p>
+            </div>
+          </div>
         </div>
 
         <div class="view-content" id="video-warning-container">
@@ -187,16 +192,21 @@
       <div id="view-folder" class="view-container">
 
         <div class="view-header">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
               <h3>📂 Mes Dossiers</h3>
               <p class="view-description">Gestion des dossiers</p>
             </div>
-            <button id="open-detailed-view-btn" class="btn-secondary"
-              style="font-size: 11px; padding: 4px 8px; margin-left: 10px;">
-              <i data-lucide="layout-grid"
-                style="width: 14px; height: 14px; margin-right: 4px; vertical-align: text-bottom;"></i>Vue détaillée
-            </button>
+            <div style="display: flex; gap: 5px;">
+              <button id="open-detailed-view-btn" class="btn-secondary" style="font-size: 11px; padding: 4px 8px;">
+                <i data-lucide="list-video"
+                  style="width: 14px; height: 14px; margin-right: 4px; vertical-align: text-bottom;"></i>Vue détaillée
+              </button>
+              <button id="open-editor-view-btn" class="btn-secondary" style="font-size: 11px; padding: 4px 8px;">
+                <i data-lucide="file-video-camera"
+                  style="width: 14px; height: 14px; margin-right: 4px; vertical-align: text-bottom;"></i>Editeur
+              </button>
+            </div>
           </div>
         </div>
         <div class="view-content">

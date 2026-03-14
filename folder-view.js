@@ -11,6 +11,23 @@ function initFolderView() {
     });
   }
 
+  const editorBtn = document.getElementById('open-editor-view-btn');
+  if (editorBtn) {
+    editorBtn.addEventListener('click', () => {
+      // Pour l'Éditeur, on cherche la vidéo la plus récente
+      api.storage.local.get(['savedVideos'], (result) => {
+        const videos = result.savedVideos || [];
+        if (videos.length > 0) {
+          videos.sort((a, b) => new Date(b.date) - new Date(a.date));
+          const lastVideoId = videos[0].id;
+          window.open(`edit-video.html?id=${lastVideoId}`, '_blank');
+        } else {
+          alert("Aucune vidéo trouvée à éditer.");
+        }
+      });
+    });
+  }
+
   // Namespace unifié
   const api = typeof browser !== 'undefined' ? browser : chrome;
   const hasDownloadsApi = !!(api.downloads && api.downloads.search);

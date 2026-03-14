@@ -11,7 +11,86 @@ const videoDateSpan = document.getElementById('video-date');
 const videoDurationSpan = document.getElementById('video-duration');
 const videoIdSpan = document.getElementById('video-id');
 
-const chaptersContent = document.getElementById('chapters-content');
+// Garder une référence à l'URL propre pour pouvoir recharger avec des fragments
+let currentVideoUrl = null;
+
+// Écouteur d'erreurs pour diagnostic
+function attachVideoListeners(player) {
+    player.addEventListener('error', () => {
+        const err = player.error;
+        console.error("Erreur Vidéo:", err);
+        if (err) {
+            console.error(`- Code: ${err.code}`);
+            console.error(`- Message: ${err.message}`);
+
+            // Gérer le bug PIPELINE_ERROR_DECODE de Chrome sur certains WebM
+            if (err.code === 3 && err.message.includes('PIPELINE_ERROR_DECODE')) {
+                console.error("[Décodeur Chrome] Le navigateur a planté en essayant de chercher (seek) dans ce fichier WebM.");
+                showStatus("Erreur navigateur : Impossible de naviguer dans cette vidéo. Le décodeur Chrome a planté (fichier WebM non standard).", 5000, "#ef4444");
+
+                // On remet la vidéo à zéro pour qu'elle soit au moins lisible depuis le début 
+                // sans bloquer complètement l'interface utilisateur.
+                setTimeout(() => {
+                    if (currentVideoUrl) {
+                        player.src = currentVideoUrl;
+                        player.load();
+                    }
+                }, 1000);
+            }
+        }
+    });
+
+    // Diagnostic de progression du décodage
+    let lastTimeUpdate = 0;
+    player.addEventListener('timeupdate', () => {
+        const now = Date.now();
+        if (now - lastTimeUpdate > 2000 && !player.paused) {
+            console.log(`[Diagnostic Video] En cours de lecture... currentTime: ${player.currentTime.toFixed(2)}s`);
+        }
+        lastTimeUpdate = now;
+    });
+
+    player.addEventListener('stalled', () => {
+        console.warn("[Diagnostic Video] stalled event: Le navigateur essaie de lire les données mais elles ne sont pas disponibles.");
+    });
+
+    player.addEventListener('waiting', () => {
+        console.warn(`[Diagnostic Video] waiting event: Attente de données à ${player.currentTime.toFixed(2)}s...`);
+    });
+}
+
+// Charger une vidéo directement
+async function loadVideoBlob(file) {
+    console.log(`[Diagnostic Fichier] ---------- NOUVEAU FICHIER ----------`);
+    console.log(`[Diagnostic Fichier] Nom: ${file.name}`);
+    console.log(`[Diagnostic Fichier] Type MIME: ${file.type}`);
+    console.log(`[Diagnostic Fichier] Taille: ${(file.size / (1024 * 1024)).toFixed(2)} Mo`);
+
+    if (currentVideoUrl) URL.revokeObjectURL(currentVideoUrl);
+    currentVideoUrl = URL.createObjectURL(file);
+    const player = document.getElementById('video-player');
+    player.src = currentVideoUrl;
+    fileOverlay.style.display = 'none';
+
+    player.onloadedmetadata = () => {
+        const d = player.duration;
+        videoDurationSpan.textContent = `${Math.floor(d / 60)}:${Math.floor(d % 60).toString().padStart(2, '0')}`;
+
+        console.log(`[Diagnostic Fichier] Durée détectée par le navigateur: ${d}s`);
+        console.log(`[Diagnostic Fichier] Dimensions: ${player.videoWidth}x${player.videoHeight}`);
+
+        const sr = player.seekable;
+        if (sr.length > 0) {
+            console.log(`[Diagnostic Fichier] Plages seekable: ${sr.start(0)} -> ${sr.end(sr.length - 1)}`);
+        } else {
+            console.warn(`[Diagnostic Fichier] ATTENTION: Aucune plage seekable détectée !`);
+        }
+    };
+    attachVideoListeners(player);
+}
+
+const chaptersTab = document.getElementById('chapters-content');
+const chaptersContent = document.getElementById('chapters-list-inner');
 const transcriptContent = document.getElementById('transcript-content');
 const tabButtons = document.querySelectorAll('.tab-btn');
 
@@ -124,8 +203,28 @@ function renderChapters() {
 
         // Navigation au clic sur le temps
         item.querySelector('.chapter-time').addEventListener('click', () => {
-            videoPlayer.currentTime = rawTime;
-            videoPlayer.play();
+            if (!currentVideoUrl) return;
+
+            const player = document.getElementById('video-player');
+            const wasPlaying = !player.paused;
+
+            // Pause if playing to stabilize pipeline before seek
+            if (wasPlaying) {
+                player.pause();
+            }
+
+            // Small delay to ensure pause state is settled before seeking
+            setTimeout(() => {
+                player.currentTime = rawTime;
+
+                // Only resume play after the seek has completed
+                if (wasPlaying) {
+                    player.addEventListener('seeked', function onSeeked() {
+                        player.removeEventListener('seeked', onSeeked);
+                        player.play().catch(() => { });
+                    }, { once: true });
+                }
+            }, 50);
         });
 
         // Mise à jour titre
@@ -179,16 +278,7 @@ hiddenFileInput.addEventListener('change', (e) => {
         if (file.name.toLowerCase().endsWith('.txt')) {
             loadTranscriptFile(file);
         } else if (file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.webm')) {
-            const url = URL.createObjectURL(file);
-            videoPlayer.src = url;
-            fileOverlay.style.display = 'none';
-
-            videoPlayer.onloadedmetadata = () => {
-                const duration = videoPlayer.duration;
-                const min = Math.floor(duration / 60);
-                const sec = Math.floor(duration % 60);
-                videoDurationSpan.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
-            };
+            loadVideoBlob(file);
         }
     });
 });
@@ -202,14 +292,64 @@ function initTabs() {
 
             const tab = btn.dataset.tab;
             if (tab === 'chapters') {
-                chaptersContent.style.display = 'block';
+                chaptersTab.style.display = 'block';
                 transcriptContent.style.display = 'none';
             } else {
-                chaptersContent.style.display = 'none';
+                chaptersTab.style.display = 'none';
                 transcriptContent.style.display = 'block';
             }
         });
     });
+}
+
+// Chargement manuel des fichiers
+function initManualLoaders() {
+    const loadChaptersBtn = document.getElementById('load-chapters-btn');
+    const chaptersFileInput = document.getElementById('chapters-file-input');
+    const loadTranscriptBtn = document.getElementById('load-transcript-btn');
+    const transcriptFileInput = document.getElementById('transcript-file-input');
+
+    if (loadChaptersBtn && chaptersFileInput) {
+        loadChaptersBtn.addEventListener('click', () => chaptersFileInput.click());
+        chaptersFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    // On supporte plusieurs formats possibles
+                    let extractedChapters = [];
+                    if (Array.isArray(data)) {
+                        extractedChapters = data;
+                    } else if (data.chapters && Array.isArray(data.chapters)) {
+                        extractedChapters = data.chapters;
+                    }
+
+                    if (extractedChapters.length > 0) {
+                        currentVideoData.chapters = extractedChapters;
+                        renderChapters();
+                        showStatus("Chapitres chargés avec succès !");
+                    } else {
+                        alert("Aucun chapitre trouvé dans ce fichier.");
+                    }
+                } catch (err) {
+                    console.error("Erreur parsing JSON chapitres:", err);
+                    alert("Erreur lors de la lecture du fichier JSON.");
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    if (loadTranscriptBtn && transcriptFileInput) {
+        loadTranscriptBtn.addEventListener('click', () => transcriptFileInput.click());
+        transcriptFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) loadTranscriptFile(file);
+        });
+    }
 }
 
 // Sauvegarde
@@ -328,16 +468,7 @@ async function performAutoLoad(dirHandle) {
 
         if (file) {
             console.log("[AutoLoad] Fichier vidéo trouvé et chargé !");
-            const url = URL.createObjectURL(file);
-            videoPlayer.src = url;
-            fileOverlay.style.display = 'none';
-
-            videoPlayer.onloadedmetadata = () => {
-                const duration = videoPlayer.duration;
-                const min = Math.floor(duration / 60);
-                const sec = Math.floor(duration % 60);
-                videoDurationSpan.textContent = `${min}:${sec.toString().padStart(2, '0')}`;
-            };
+            await loadVideoBlob(file);
 
             showStatus("Vidéo chargée automatiquement !");
 
@@ -370,6 +501,7 @@ function initIcons() {
 document.addEventListener('DOMContentLoaded', () => {
     loadVideoData(Number(currentVideoId));
     initTabs();
+    initManualLoaders();
     initIcons();
     setTimeout(tryAutoLoadVideo, 800);
 });
