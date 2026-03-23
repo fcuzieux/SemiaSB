@@ -3,7 +3,7 @@
 // Dictionnaire des templates de instructions (Prompts)
 const AI_PROMPT_TEMPLATES = {
     minutes: "Merci de générer un COMPTE RENDU STRUCTURÉ contenant :\n1. 📝 Résumé Exécutif (3-4 phrases)\n2. 🔑 Points Clés (Liste à puces)\n3. ✅ Actions / Décisions (Qui fait quoi, Dates clés)\n4. 💡 Idées Principales\n\nUtilise un style Markdown clair et professionnel.",
-    summary: "RÉSUMÉ STRUCTURÉ :\n- Analyse le sujet central\n- Extrais les points majeurs (sous-titres gras)\n- Utilise des listes à puces pour les détails.\n\nStyle Markdown.",
+    summary: "RÉSUMÉ STRUCTURÉ ET ANALYTIQUE:\n- Analyse le sujet central\n- Extrais les points majeurs (sous-titres gras)\n- Utilise des listes à puces pour les détails.\n\nStyle Markdown.",
     pimp: "Améliore la lisibilité de cette transcription brute tout en restant 100% fidèle au sens original. Ajoute de la ponctuation, corrige les fautes de frappe évidentes, et structure en paragraphes aérés. Ne résume pas, garde tout le contenu."
 };
 

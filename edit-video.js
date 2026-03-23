@@ -13,6 +13,7 @@ const videoIdSpan = document.getElementById('video-id');
 
 // Garder une référence à l'URL propre pour pouvoir recharger avec des fragments
 let currentVideoUrl = null;
+let currentVideoFile = null;
 
 // Écouteur d'erreurs pour diagnostic
 function attachVideoListeners(player) {
@@ -61,6 +62,7 @@ function attachVideoListeners(player) {
 
 // Charger une vidéo directement
 async function loadVideoBlob(file) {
+    currentVideoFile = file;
     console.log(`[Diagnostic Fichier] ---------- NOUVEAU FICHIER ----------`);
     console.log(`[Diagnostic Fichier] Nom: ${file.name}`);
     console.log(`[Diagnostic Fichier] Type MIME: ${file.type}`);
@@ -559,3 +561,95 @@ closeAiBtn.addEventListener('click', () => {
 window.showStatusUtils = (msg, isError) => {
     showStatus(msg); // Reuses existing statusMsg
 };
+
+// --- WHISPER OFFLINE TRANSCRIPTION (edit-video) ---
+let localWhisperWorker = null;
+
+async function startLocalWhisperTranscription() {
+    if (!currentVideoFile) {
+        showStatus("Veuillez d'abord charger le fichier vidéo local.");
+        return;
+    }
+
+    const transcribeBtn = document.getElementById('transcribe-whisper-btn');
+    if (transcribeBtn) transcribeBtn.disabled = true;
+
+    const transcriptPlaceholder = document.getElementById('transcript-placeholder');
+    const transcriptArea = document.getElementById('liveTranscript');
+    
+    if (transcriptPlaceholder) transcriptPlaceholder.style.display = 'none';
+    if (transcriptArea) {
+        transcriptArea.style.display = 'block';
+        transcriptArea.value = "Préparation de l'extraction audio...\\n";
+    }
+
+    try {
+        transcriptArea.value += "Extraction audio en cours (cela peut prendre quelques secondes)...\\n";
+        
+        const arrayBuffer = await currentVideoFile.arrayBuffer();
+
+        transcriptArea.value += "Décodage de l'audio à 16kHz...\\n";
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        transcriptArea.value += "Fusion des canaux audio...\\n";
+        const offlineCtx = new OfflineAudioContext(1, audioBuffer.length, 16000);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineCtx.destination);
+        source.start();
+        const renderedBuffer = await offlineCtx.startRendering();
+        const pcmData = renderedBuffer.getChannelData(0);
+
+        transcriptArea.value += "Audio extrait avec succès! Chargement de Whisper...\\n";
+
+        if (!localWhisperWorker) {
+            localWhisperWorker = new Worker('whisper-worker.js', { type: 'module' });
+            
+            localWhisperWorker.onmessage = (e) => {
+                const msg = e.data;
+                if (msg.status === 'ready') {
+                    transcriptArea.value += "Modèle Whisper prêt ! Démarrage de la transcription...\\n---\\n";
+                } else if (msg.status === 'progress' && msg.data?.status === 'progress') {
+                    const pct = Math.round(msg.data.progress || 0);
+                    showStatus(`Chargement IA : ${pct}%`);
+                } else if (msg.status === 'chunk') {
+                    transcriptArea.value += (transcriptArea.value.endsWith('\\n') ? '' : ' ') + msg.result.trim() + '\\n';
+                    transcriptArea.scrollTop = transcriptArea.scrollHeight;
+                } else if (msg.status === 'complete') {
+                    transcriptArea.value += "\\n\\n--- Transcription Terminée ---";
+                    transcriptArea.scrollTop = transcriptArea.scrollHeight;
+                    if (transcribeBtn) transcribeBtn.disabled = false;
+                    showStatus("Transcription terminée !");
+                    if (currentVideoData) {
+                        currentVideoData.transcription = transcriptArea.value;
+                    }
+                } else if (msg.status === 'error') {
+                    transcriptArea.value += `\nErreur Whisper: ${msg.error}`;
+                    if (transcribeBtn) transcribeBtn.disabled = false;
+                }
+            };
+            localWhisperWorker.postMessage({ type: 'init' });
+        }
+
+        localWhisperWorker.postMessage({
+            type: 'transcribe',
+            audio: pcmData,
+            options: { language: 'french', task: 'transcribe' }
+        });
+
+    } catch (error) {
+        console.error("Erreur de transcription locale:", error);
+        transcriptArea.value += `\nErreur lors de l'extraction: ${error.message}`;
+        if (transcribeBtn) transcribeBtn.disabled = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const transcribeBtn = document.getElementById('transcribe-whisper-btn');
+        if (transcribeBtn) {
+            transcribeBtn.addEventListener('click', startLocalWhisperTranscription);
+        }
+    }, 1000);
+});

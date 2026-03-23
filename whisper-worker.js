@@ -1,5 +1,5 @@
 // whisper-worker.js
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.14.0/dist/transformers.min.js';
+import { pipeline, env } from './transformers.min.js';
 
 // Configuration pour éviter de chercher les fichiers locaux partout
 env.allowLocalModels = false;
@@ -51,10 +51,16 @@ self.onmessage = async (e) => {
                 language: lang || 'french',
                 task: whisperOptions.task || 'transcribe',
                 chunk_length_s: 30,
-                stride_length_s: 5
+                stride_length_s: 5,
+                return_timestamps: true,
+                chunk_callback: (chunk) => {
+                    if (chunk && chunk.text) {
+                        self.postMessage({ status: 'chunk', result: chunk.text });
+                    }
+                }
             });
 
-            // Renvoyer le texte
+            // Renvoyer le texte complet en fin
             if (output && output.text && output.text.length > 0) {
                 self.postMessage({ status: 'complete', result: output.text });
             }
