@@ -73,7 +73,7 @@ async function handleSaveMedia(request) {
 api.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "GET_SETTINGS") {
     // Ne récupérer que les clés de paramètres (PAS savedVideos qui contient des thumbnails énormes)
-    const settingsKeys = ['aiProvider', 'backupFolder', 'ai_semia', 'ai_mistral', 'ai_openai', 'ai_gemini', 'ai_anthropic'];
+    const settingsKeys = ['aiProvider', 'backupFolder', 'ai_semia', 'ai_mistral', 'ai_openai', 'ai_gemini', 'ai_anthropic', 'ai_albert'];
     api.storage.local.get(settingsKeys, (items) => sendResponse(items));
     return true;
   }

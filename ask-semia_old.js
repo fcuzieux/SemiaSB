@@ -40,6 +40,9 @@ function initAIFunction() {
         } else if (provider === 'mistral') {
             providerName = 'Mistral';
             providerRemark = 'Au moins c\'est français🥖';
+        } else if (provider === 'albert') {
+            providerName = 'Albert';
+            providerRemark = 'IA Albert (Etalab) France 💻';
         }
 
         // Vérifier si le provider est prêt

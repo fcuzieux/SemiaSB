@@ -40,7 +40,8 @@ function initSettings() {
             'mistral': 'open-mistral-nemo',
             'openai': 'gpt-4o-mini',
             'gemini': 'gemini-2.5-flash',
-            'anthropic': 'claude-3-5-sonnet-20241022'
+            'anthropic': 'claude-3-5-sonnet-20241022',
+            'albert': 'openai/gpt-oss-120b'
         };
         modelInput.placeholder = placeholders[provider] || 'Modèle par défaut';
     }

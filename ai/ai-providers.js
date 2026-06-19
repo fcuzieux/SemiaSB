@@ -50,6 +50,34 @@ async function callOpenAI(apiKey, model, systemrole, userrole, prompt) {
     return data.choices[0].message.content;
 }
 
+// Appel Albert (OpenAI compatible)
+async function callAlbert(apiKey, model, systemrole, userrole, prompt) {
+    const response = await fetch('https://albert.api.etalab.gouv.fr/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: model || 'openai/gpt-oss-120b',
+            messages: [
+                {
+                    role: "system",
+                    content: `${systemrole}`
+                },
+                {
+                    role: "user",
+                    content: `${userrole}\n\n${prompt}`
+                }
+            ],
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'Erreur API Albert');
+    return data.choices[0].message.content;
+}
+
 // Appel Mistral
 async function callMistral(apiKey, model, systemrole, userrole, prompt) {
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -125,6 +153,8 @@ async function callAI(provider, apiKey, model, systemrole, userrole, prompt) {
         return await callMistral(apiKey, model || 'open-mistral-nemo', systemrole, userrole, prompt);
     } else if (provider === 'openai') {
         return await callOpenAI(apiKey, model || 'gpt-4o-mini', systemrole, userrole, prompt);
+    } else if (provider === 'albert') {
+        return await callAlbert(apiKey, model || 'openai/gpt-oss-120b', systemrole, userrole, prompt);
     } else if (provider === 'gemini') {
         return await callGemini(apiKey, model || 'gemini-2.5-flash', systemrole, userrole, prompt);
     } else if (provider === 'anthropic') {
@@ -143,6 +173,8 @@ async function callAIWithHistory(provider, apiKey, model, messages) {
         return await callMistralWithHistory(apiKey, model || 'open-mistral-nemo', messages);
     } else if (provider === 'openai') {
         return await callOpenAIWithHistory(apiKey, model || 'gpt-4o-mini', messages);
+    } else if (provider === 'albert') {
+        return await callAlbertWithHistory(apiKey, model || 'openai/gpt-oss-120b', messages);
     } else if (provider === 'gemini') {
         return await callGeminiWithHistory(apiKey, model || 'gemini-2.5-flash', messages);
     } else if (provider === 'anthropic') {
@@ -187,6 +219,25 @@ async function callOpenAIWithHistory(apiKey, model, messages) {
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.error?.message || 'Erreur API OpenAI');
+    return data.choices[0].message.content;
+}
+
+// Appel Albert avec historique
+async function callAlbertWithHistory(apiKey, model, messages) {
+    const response = await fetch('https://albert.api.etalab.gouv.fr/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: model || 'openai/gpt-oss-120b',
+            messages: messages
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'Erreur API Albert');
     return data.choices[0].message.content;
 }
 
@@ -269,3 +320,4 @@ window.callSemiaAI = callSemiaAI;
 window.callOpenAI = callOpenAI;
 window.callMistral = callMistral;
 window.callGemini = callGemini;
+window.callAlbert = callAlbert;

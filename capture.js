@@ -105,7 +105,7 @@ window.addEventListener("message", (event) => {
   const api = typeof browser !== "undefined" ? browser : chrome;
   if (api && api.storage && api.storage.local) {
     console.log("📦 Contexte Extension direct détecté. Chargement des paramètres...");
-    const settingsKeys = ['aiProvider', 'backupFolder', 'ai_semia', 'ai_mistral', 'ai_openai', 'ai_gemini', 'ai_anthropic'];
+    const settingsKeys = ['aiProvider', 'backupFolder', 'ai_semia', 'ai_mistral', 'ai_openai', 'ai_gemini', 'ai_anthropic', 'ai_albert'];
     const result = await api.storage.local.get(settingsKeys);
     extensionSettings = result || {};
     window.extensionSettings = extensionSettings;
