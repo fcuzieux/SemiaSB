@@ -562,94 +562,669 @@ window.showStatusUtils = (msg, isError) => {
     showStatus(msg); // Reuses existing statusMsg
 };
 
-// --- WHISPER OFFLINE TRANSCRIPTION (edit-video) ---
-let localWhisperWorker = null;
 
-async function startLocalWhisperTranscription() {
-    if (!currentVideoFile) {
-        showStatus("Veuillez d'abord charger le fichier vidéo local.");
-        return;
+// --- ALBERT WHISPER TRANSCRIPTION ---
+
+// ── Popup de progression ──────────────────────────────────────────────────────
+
+let _albertProgressOverlay = null;
+let _albertStepEls = {};
+
+const ALBERT_STEPS = [
+    { id: 'cfg',    label: 'Vérification de la configuration Albert' },
+    { id: 'file',   label: 'Fichier vidéo chargé' },
+    { id: 'model',  label: 'Modèle openai/whisper-large-v3 disponible' },
+    { id: 'audio',  label: 'Extraction audio (16 kHz mono)' },
+    { id: 'upload', label: 'Envoi vers Albert' },
+    { id: 'result', label: 'Réception de la transcription' },
+];
+
+function showAlbertProgress() {
+    const existing = document.getElementById('albert-progress-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'albert-progress-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 9999;
+        background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'Inter', sans-serif;
+    `;
+
+    const stepsHtml = ALBERT_STEPS.map(s => `
+        <div id="albert-step-${s.id}" style="
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; border-radius: 8px;
+            transition: background 0.3s;
+        ">
+            <span id="albert-step-${s.id}-icon" style="font-size:1.2rem; width:24px; text-align:center;">⬜</span>
+            <div>
+                <div id="albert-step-${s.id}-label" style="font-size:0.88rem; color:#e2e8f0;">${s.label}</div>
+                <div id="albert-step-${s.id}-detail" style="font-size:0.75rem; color:#64748b; margin-top:2px;"></div>
+            </div>
+        </div>
+    `).join('');
+
+    overlay.innerHTML = `
+        <div style="
+            background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(99,102,241,0.35);
+            border-radius: 18px; padding: 28px 32px; width: 480px; max-width: 95vw;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+        ">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:22px;">
+                <span style="font-size:1.8rem;">🎙️</span>
+                <div>
+                    <h2 style="margin:0; font-size:1.1rem; color:#818cf8; font-weight:700;">Transcription avec Albert</h2>
+                    <p style="margin:0; font-size:0.8rem; color:#64748b;">openai/whisper-large-v3</p>
+                </div>
+            </div>
+
+            <div id="albert-steps-container" style="display:flex; flex-direction:column; gap:4px; margin-bottom:20px;">
+                ${stepsHtml}
+            </div>
+
+            <div id="albert-progress-bar-wrap" style="
+                height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px;
+                overflow:hidden; margin-bottom:16px;
+            ">
+                <div id="albert-progress-bar" style="
+                    height:100%; width:0%; border-radius:2px;
+                    background: linear-gradient(90deg, #4f46e5, #7c3aed);
+                    transition: width 0.4s ease;
+                "></div>
+            </div>
+
+            <div id="albert-progress-status" style="
+                font-size:0.8rem; color:#94a3b8; text-align:center; min-height:18px;
+            ">Démarrage…</div>
+
+            <div style="text-align:center; margin-top:16px;">
+                <button id="albert-progress-close" style="
+                    padding: 8px 22px; border-radius: 8px;
+                    border: 1px solid rgba(255,255,255,0.12);
+                    background: rgba(255,255,255,0.05); color: #94a3b8;
+                    cursor: pointer; font-size: 0.85rem; display:none;
+                ">Fermer</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    _albertProgressOverlay = overlay;
+
+    // Cache step elements
+    ALBERT_STEPS.forEach(s => {
+        _albertStepEls[s.id] = {
+            row:    document.getElementById(`albert-step-${s.id}`),
+            icon:   document.getElementById(`albert-step-${s.id}-icon`),
+            label:  document.getElementById(`albert-step-${s.id}-label`),
+            detail: document.getElementById(`albert-step-${s.id}-detail`),
+        };
+    });
+
+    document.getElementById('albert-progress-close').addEventListener('click', () => overlay.remove());
+}
+
+/**
+ * Met à jour une étape dans le popup.
+ * state: 'pending' | 'loading' | 'ok' | 'error'
+ */
+function albertStepUpdate(stepId, state, detail = '') {
+    const el = _albertStepEls[stepId];
+    if (!el) return;
+
+    const icons = { pending: '⬜', loading: '⏳', ok: '✅', error: '❌' };
+    const colors = { pending: 'transparent', loading: 'rgba(99,102,241,0.08)', ok: 'rgba(16,185,129,0.08)', error: 'rgba(239,68,68,0.08)' };
+    const labelColors = { pending: '#94a3b8', loading: '#c7d2fe', ok: '#6ee7b7', error: '#fca5a5' };
+
+    el.icon.textContent = icons[state] || '⬜';
+    el.row.style.background = colors[state] || 'transparent';
+    el.label.style.color = labelColors[state] || '#e2e8f0';
+    if (detail) el.detail.textContent = detail;
+
+    // Update progress bar
+    const doneCount = ALBERT_STEPS.filter(s => {
+        const icon = _albertStepEls[s.id]?.icon?.textContent;
+        return icon === '✅';
+    }).length;
+    const bar = document.getElementById('albert-progress-bar');
+    if (bar) bar.style.width = `${Math.round((doneCount / ALBERT_STEPS.length) * 100)}%`;
+}
+
+function albertProgressStatus(msg) {
+    const el = document.getElementById('albert-progress-status');
+    if (el) el.textContent = msg;
+}
+
+function albertProgressDone(success) {
+    const closeBtn = document.getElementById('albert-progress-close');
+    if (closeBtn) closeBtn.style.display = 'inline-block';
+    const statusEl = document.getElementById('albert-progress-status');
+    if (statusEl) {
+        statusEl.textContent = success ? '✅ Transcription terminée avec succès !' : '❌ Une erreur est survenue.';
+        statusEl.style.color = success ? '#6ee7b7' : '#fca5a5';
     }
+    const bar = document.getElementById('albert-progress-bar');
+    if (bar) bar.style.width = success ? '100%' : bar.style.width;
+}
 
-    const transcribeBtn = document.getElementById('transcribe-whisper-btn');
+// ── Logique principale ────────────────────────────────────────────────────────
+
+async function checkAlbertConfig() {
+    return new Promise((resolve) => {
+        const storageApi = typeof browser !== 'undefined' ? browser : chrome;
+        storageApi.storage.local.get(['ai_albert'], (result) => {
+            const apiKey = result.ai_albert;
+            if (!apiKey || String(apiKey).trim() === '') {
+                resolve({ ok: false, reason: 'no_key' });
+            } else {
+                resolve({ ok: true, apiKey: String(apiKey).trim() });
+            }
+        });
+    });
+}
+
+async function albertHasWhisperModel(apiKey) {
+    try {
+        const resp = await fetch('https://albert.api.etalab.gouv.fr/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        if (!resp.ok) return { found: false, error: `HTTP ${resp.status}` };
+        const data = await resp.json();
+        const models = data.data || data.models || [];
+        const found = models.some(m => {
+            const id = (m.id || m.name || '').toLowerCase();
+            return id.includes('whisper-large-v3') || id.includes('openai/whisper');
+        });
+        return { found, modelList: models.map(m => m.id || m.name).join(', ') };
+    } catch (e) {
+        return { found: false, error: e.message };
+    }
+}
+
+function pcmToWavBlob(pcmData, sampleRate) {
+    const numSamples    = pcmData.length;
+    const numChannels   = 1;
+    const bitsPerSample = 16;
+    const byteRate      = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign    = numChannels * bitsPerSample / 8;
+    const dataSize      = numSamples * blockAlign;
+    const buffer        = new ArrayBuffer(44 + dataSize);
+    const view          = new DataView(buffer);
+
+    const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+    writeStr(0, 'RIFF');  view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');  writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true); view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true); writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+        const s = Math.max(-1, Math.min(1, pcmData[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+async function startAlbertTranscription() {
+    // Ouvrir le popup de progression immédiatement
+    showAlbertProgress();
+
+    const transcribeBtn = document.getElementById('transcribe-albert-btn');
     if (transcribeBtn) transcribeBtn.disabled = true;
 
-    const transcriptPlaceholder = document.getElementById('transcript-placeholder');
-    const transcriptArea = document.getElementById('liveTranscript');
-    
-    if (transcriptPlaceholder) transcriptPlaceholder.style.display = 'none';
-    if (transcriptArea) {
-        transcriptArea.style.display = 'block';
-        transcriptArea.value = "Préparation de l'extraction audio...\\n";
-    }
-
     try {
-        transcriptArea.value += "Extraction audio en cours (cela peut prendre quelques secondes)...\\n";
-        
+        // ── Étape 1 : Configuration ───────────────────────────────────────────
+        albertStepUpdate('cfg', 'loading', 'Lecture du stockage extension...');
+        albertProgressStatus('Vérification de la configuration...');
+
+        const config = await checkAlbertConfig();
+        if (!config.ok) {
+            albertStepUpdate('cfg', 'error', 'Clé API Albert introuvable dans les paramètres');
+            albertProgressStatus('Configure Albert dans les Paramètres de SemiaSB, puis réessaie.');
+            albertProgressDone(false);
+            return;
+        }
+        albertStepUpdate('cfg', 'ok', `Clé API trouvée (${config.apiKey.substring(0,8)}…)`);
+
+        // ── Étape 2 : Fichier vidéo ───────────────────────────────────────────
+        albertStepUpdate('file', 'loading', 'Vérification du fichier chargé...');
+        albertProgressStatus('Vérification du fichier vidéo...');
+
+        if (!currentVideoFile) {
+            albertStepUpdate('file', 'error', 'Aucun fichier vidéo chargé. Utilisez "Charger le fichier .webm" d\'abord.');
+            albertProgressDone(false);
+            return;
+        }
+        albertStepUpdate('file', 'ok', `${currentVideoFile.name} (${(currentVideoFile.size / 1024 / 1024).toFixed(1)} Mo)`);
+
+        // ── Étape 3 : Modèle Whisper ──────────────────────────────────────────
+        albertStepUpdate('model', 'loading', 'Interrogation de l\'API Albert /v1/models...');
+        albertProgressStatus('Vérification du modèle whisper-large-v3...');
+
+        const modelCheck = await albertHasWhisperModel(config.apiKey);
+        if (!modelCheck.found) {
+            const detail = modelCheck.error
+                ? `Erreur API : ${modelCheck.error}`
+                : 'openai/whisper-large-v3 non trouvé dans la liste des modèles';
+            albertStepUpdate('model', 'error', detail);
+            albertProgressDone(false);
+            return;
+        }
+        albertStepUpdate('model', 'ok', 'openai/whisper-large-v3 ✓');
+
+        // ── Étape 4 : Extraction audio ────────────────────────────────────────
+        albertStepUpdate('audio', 'loading', 'Décodage et ré-échantillonnage à 16 kHz...');
+        albertProgressStatus('Extraction audio en cours (peut prendre quelques secondes)...');
+
         const arrayBuffer = await currentVideoFile.arrayBuffer();
-
-        transcriptArea.value += "Décodage de l'audio à 16kHz...\\n";
         const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        let audioBuffer;
+        try {
+            audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        } catch(decodeErr) {
+            albertStepUpdate('audio', 'error', `Échec du décodage audio : ${decodeErr.message}`);
+            albertProgressDone(false);
+            return;
+        }
 
-        transcriptArea.value += "Fusion des canaux audio...\\n";
         const offlineCtx = new OfflineAudioContext(1, audioBuffer.length, 16000);
         const source = offlineCtx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(offlineCtx.destination);
         source.start();
-        const renderedBuffer = await offlineCtx.startRendering();
-        const pcmData = renderedBuffer.getChannelData(0);
+        const rendered = await offlineCtx.startRendering();
+        const pcmData  = rendered.getChannelData(0);
+        const wavBlob  = pcmToWavBlob(pcmData, 16000);
 
-        transcriptArea.value += "Audio extrait avec succès! Chargement de Whisper...\\n";
+        const durationSec = Math.round(audioBuffer.duration);
+        const sizeMb      = (wavBlob.size / 1024 / 1024).toFixed(1);
+        albertStepUpdate('audio', 'ok', `${durationSec}s audio, WAV ${sizeMb} Mo prêt`);
 
-        if (!localWhisperWorker) {
-            localWhisperWorker = new Worker('whisper-worker.js', { type: 'module' });
-            
-            localWhisperWorker.onmessage = (e) => {
-                const msg = e.data;
-                if (msg.status === 'ready') {
-                    transcriptArea.value += "Modèle Whisper prêt ! Démarrage de la transcription...\\n---\\n";
-                } else if (msg.status === 'progress' && msg.data?.status === 'progress') {
-                    const pct = Math.round(msg.data.progress || 0);
-                    showStatus(`Chargement IA : ${pct}%`);
-                } else if (msg.status === 'chunk') {
-                    transcriptArea.value += (transcriptArea.value.endsWith('\\n') ? '' : ' ') + msg.result.trim() + '\\n';
-                    transcriptArea.scrollTop = transcriptArea.scrollHeight;
-                } else if (msg.status === 'complete') {
-                    transcriptArea.value += "\\n\\n--- Transcription Terminée ---";
-                    transcriptArea.scrollTop = transcriptArea.scrollHeight;
-                    if (transcribeBtn) transcribeBtn.disabled = false;
-                    showStatus("Transcription terminée !");
-                    if (currentVideoData) {
-                        currentVideoData.transcription = transcriptArea.value;
-                    }
-                } else if (msg.status === 'error') {
-                    transcriptArea.value += `\nErreur Whisper: ${msg.error}`;
-                    if (transcribeBtn) transcribeBtn.disabled = false;
-                }
-            };
-            localWhisperWorker.postMessage({ type: 'init' });
+        // ── Étape 5 : Envoi vers Albert ───────────────────────────────────────
+        albertStepUpdate('upload', 'loading', `Envoi de ${sizeMb} Mo vers albert.api.etalab.gouv.fr...`);
+        albertProgressStatus('Envoi du fichier audio vers Albert...');
+
+        const formData = new FormData();
+        formData.append('file', wavBlob, 'audio.wav');
+        formData.append('model', 'openai/whisper-large-v3');
+        formData.append('language', 'fr');
+        formData.append('response_format', 'json');
+
+        let response;
+        try {
+            response = await fetch('https://albert.api.etalab.gouv.fr/v1/audio/transcriptions', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${config.apiKey}` },
+                body: formData
+            });
+        } catch(netErr) {
+            albertStepUpdate('upload', 'error', `Erreur réseau : ${netErr.message}`);
+            albertProgressDone(false);
+            return;
         }
 
-        localWhisperWorker.postMessage({
-            type: 'transcribe',
-            audio: pcmData,
-            options: { language: 'french', task: 'transcribe' }
-        });
+        if (!response.ok) {
+            const errText = await response.text().catch(() => '(réponse vide)');
+            albertStepUpdate('upload', 'error', `HTTP ${response.status} — ${errText.substring(0, 120)}`);
+            albertProgressDone(false);
+            return;
+        }
+        albertStepUpdate('upload', 'ok', `Réponse reçue (HTTP ${response.status})`);
 
-    } catch (error) {
-        console.error("Erreur de transcription locale:", error);
-        transcriptArea.value += `\nErreur lors de l'extraction: ${error.message}`;
-        if (transcribeBtn) transcribeBtn.disabled = false;
+        // ── Étape 6 : Résultat ────────────────────────────────────────────────
+        albertStepUpdate('result', 'loading', 'Décodage de la réponse JSON...');
+        albertProgressStatus('Traitement de la transcription...');
+
+        let result;
+        try {
+            result = await response.json();
+        } catch(jsonErr) {
+            albertStepUpdate('result', 'error', `Réponse invalide (non-JSON) : ${jsonErr.message}`);
+            albertProgressDone(false);
+            return;
+        }
+
+        const transcript = result.text || result.transcript || '';
+        if (!transcript) {
+            albertStepUpdate('result', 'error', 'Transcription vide reçue. Vérifiez que la vidéo contient de l\'audio.');
+            albertProgressDone(false);
+            return;
+        }
+
+        const wordCount = transcript.split(/\s+/).length;
+        albertStepUpdate('result', 'ok', `${wordCount} mots transcrits`);
+        albertProgressStatus(`Transcription terminée — ${wordCount} mots.`);
+        albertProgressDone(true);
+
+        // Injecter la transcription dans l'interface
+        const transcriptPlaceholder = document.getElementById('transcript-placeholder');
+        const transcriptArea        = document.getElementById('liveTranscript');
+        if (transcriptPlaceholder) transcriptPlaceholder.style.display = 'none';
+        if (transcriptArea) {
+            transcriptArea.style.display = 'block';
+            transcriptArea.value = transcript;
+            transcriptArea.scrollTop = transcriptArea.scrollHeight;
+        }
+        if (currentVideoData) currentVideoData.transcription = transcript;
+        showStatus('✅ Transcription Albert terminée !');
+
+    } catch (unexpectedErr) {
+        console.error('[Albert Transcription] Erreur inattendue:', unexpectedErr);
+        albertProgressStatus(`Erreur inattendue : ${unexpectedErr.message}`);
+        albertProgressDone(false);
+    } finally {
+        if (transcribeBtn) {
+            transcribeBtn.disabled = false;
+            transcribeBtn.innerHTML = '<i data-lucide="mic" style="width:14px;height:14px;"></i> 🎙️ Transcrire avec Albert';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
     }
 }
 
+// ── Binding direct du bouton (le script est chargé en bas de <body>,
+//    le DOM est déjà prêt — pas besoin de DOMContentLoaded) ───────────────────
+(function bindAlbertButton() {
+    const btn = document.getElementById('transcribe-albert-btn');
+    if (btn) {
+        btn.addEventListener('click', startAlbertTranscription);
+        console.log('[Albert] Bouton de transcription lié.');
+    } else {
+        // Fallback si le DOM n'est pas encore prêt (cas improbable)
+        document.addEventListener('DOMContentLoaded', () => {
+            const b = document.getElementById('transcribe-albert-btn');
+            if (b) b.addEventListener('click', startAlbertTranscription);
+        });
+    }
+})();
+
+
+/**
+ * Vérifie que le fournisseur Albert est configuré et que le modèle
+ * openai/whisper-large-v3 est disponible.
+ * Retourne { ok: true, apiKey } ou { ok: false, reason: '...' }
+ */
+async function checkAlbertConfig() {
+    return new Promise((resolve) => {
+        const api = typeof browser !== 'undefined' ? browser : chrome;
+        api.storage.local.get(['ai_provider', 'ai_albert', 'ai_albert_model'], (result) => {
+            const provider = result.ai_provider;
+            const apiKey   = result.ai_albert;
+            const model    = result.ai_albert_model || '';
+
+            if (provider !== 'albert' && !apiKey) {
+                resolve({ ok: false, reason: 'not_configured' });
+                return;
+            }
+            if (!apiKey || apiKey.trim() === '') {
+                resolve({ ok: false, reason: 'no_key' });
+                return;
+            }
+            resolve({ ok: true, apiKey: apiKey.trim(), savedModel: model });
+        });
+    });
+}
+
+/**
+ * Interroge l'API Albert pour lister les modèles et vérifie la présence
+ * du modèle whisper-large-v3.
+ */
+async function albertHasWhisperModel(apiKey) {
+    try {
+        const resp = await fetch('https://albert.api.etalab.gouv.fr/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+        if (!resp.ok) return false;
+        const data = await resp.json();
+        const models = data.data || data.models || [];
+        return models.some(m => {
+            const id = (m.id || m.name || '').toLowerCase();
+            return id.includes('whisper-large-v3') || id.includes('openai/whisper');
+        });
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Lance la transcription audio via l'endpoint audio/transcriptions d'Albert.
+ */
+async function startAlbertTranscription() {
+    const transcribeBtn = document.getElementById('transcribe-albert-btn');
+
+    // 1) Vérifier la configuration Albert
+    const config = await checkAlbertConfig();
+    if (!config.ok) {
+        showAlbertConfigPopup();
+        return;
+    }
+
+    const { apiKey } = config;
+
+    // 2) Vérifier que le fichier vidéo est chargé
+    if (!currentVideoFile) {
+        showStatus('⚠️ Veuillez d\'abord charger le fichier vidéo.');
+        return;
+    }
+
+    // 3) Vérifier que le modèle whisper-large-v3 est disponible
+    if (transcribeBtn) {
+        transcribeBtn.disabled = true;
+        transcribeBtn.textContent = '🔍 Vérification du modèle...';
+    }
+
+    const hasWhisper = await albertHasWhisperModel(apiKey);
+    if (!hasWhisper) {
+        showAlbertConfigPopup('whisper_missing');
+        if (transcribeBtn) {
+            transcribeBtn.disabled = false;
+            transcribeBtn.innerHTML = '<i data-lucide="mic" style="width:14px;height:14px;"></i> 🎙️ Transcrire avec Albert';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+        return;
+    }
+
+    // 4) Extraire l'audio en WAV 16kHz mono
+    const transcriptPlaceholder = document.getElementById('transcript-placeholder');
+    const transcriptArea = document.getElementById('liveTranscript');
+
+    if (transcriptPlaceholder) transcriptPlaceholder.style.display = 'none';
+    if (transcriptArea) {
+        transcriptArea.style.display = 'block';
+        transcriptArea.value = '⏳ Extraction audio en cours...\n';
+    }
+    if (transcribeBtn) transcribeBtn.textContent = '⏳ Extraction audio...';
+
+    try {
+        const arrayBuffer = await currentVideoFile.arrayBuffer();
+
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const audioBuffer  = await audioContext.decodeAudioData(arrayBuffer);
+
+        const offlineCtx = new OfflineAudioContext(1, audioBuffer.length, 16000);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(offlineCtx.destination);
+        source.start();
+        const rendered = await offlineCtx.startRendering();
+        const pcmData  = rendered.getChannelData(0);
+
+        // Encoder en WAV
+        const wavBlob = pcmToWavBlob(pcmData, 16000);
+
+        if (transcriptArea) transcriptArea.value += '✅ Audio extrait. Envoi vers Albert...\n';
+        if (transcribeBtn) transcribeBtn.textContent = '📡 Envoi vers Albert...';
+
+        // 5) Appel à l'API Albert audio/transcriptions
+        const formData = new FormData();
+        formData.append('file', wavBlob, 'audio.wav');
+        formData.append('model', 'openai/whisper-large-v3');
+        formData.append('language', 'fr');
+        formData.append('response_format', 'json');
+
+        const response = await fetch('https://albert.api.etalab.gouv.fr/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Albert API error ${response.status}: ${errText}`);
+        }
+
+        const result = await response.json();
+        const transcript = result.text || result.transcript || '';
+
+        if (transcriptArea) {
+            transcriptArea.value = transcript;
+            transcriptArea.scrollTop = transcriptArea.scrollHeight;
+        }
+        if (currentVideoData) {
+            currentVideoData.transcription = transcript;
+        }
+        showStatus('✅ Transcription Albert terminée !');
+
+    } catch (error) {
+        console.error('[Albert Transcription] Erreur:', error);
+        if (transcriptArea) {
+            transcriptArea.value += `\n❌ Erreur : ${error.message}`;
+        }
+        showStatus('❌ Erreur lors de la transcription.');
+    } finally {
+        if (transcribeBtn) {
+            transcribeBtn.disabled = false;
+            transcribeBtn.innerHTML = '<i data-lucide="mic" style="width:14px;height:14px;"></i> 🎙️ Transcrire avec Albert';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+}
+
+/**
+ * Convertit un buffer PCM Float32 en Blob WAV.
+ */
+function pcmToWavBlob(pcmData, sampleRate) {
+    const numSamples  = pcmData.length;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate     = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign   = numChannels * bitsPerSample / 8;
+    const dataSize     = numSamples * blockAlign;
+    const buffer       = new ArrayBuffer(44 + dataSize);
+    const view         = new DataView(buffer);
+
+    const writeStr = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    writeStr(36, 'data');
+    view.setUint32(40, dataSize, true);
+
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+        const s = Math.max(-1, Math.min(1, pcmData[i]));
+        view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        offset += 2;
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+/**
+ * Affiche un popup informatif demandant à l'utilisateur de configurer Albert.
+ */
+function showAlbertConfigPopup(reason = 'not_configured') {
+    // Créer un overlay modal
+    const existing = document.getElementById('albert-config-popup');
+    if (existing) existing.remove();
+
+    const isWisperMissing = reason === 'whisper_missing';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'albert-config-popup';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 9999;
+        background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    const title   = isWisperMissing
+        ? '⚠️ Modèle Whisper non disponible'
+        : '⚙️ Configuration Albert requise';
+    const message = isWisperMissing
+        ? `Le modèle <strong>openai/whisper-large-v3</strong> n'est pas disponible
+           sur votre compte Albert.<br><br>
+           Vérifiez que votre clé API donne accès à ce modèle ou contactez
+           l'administrateur de votre organisation Albert.`
+        : `Le fournisseur IA <strong>Albert</strong> n'est pas encore configuré.<br><br>
+           Rendez-vous dans <strong>⚙️ Paramètres</strong> de SemiaSB, choisissez
+           le fournisseur <em>Albert</em>, saisissez votre clé API, puis revenez
+           ici pour transcrire votre vidéo.`;
+
+    overlay.innerHTML = `
+        <div style="
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid rgba(99,102,241,0.4);
+            border-radius: 16px; padding: 32px; max-width: 420px; width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            font-family: 'Inter', sans-serif; color: #e2e8f0; text-align: center;
+        ">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">🎙️</div>
+            <h2 style="margin: 0 0 16px; color: #818cf8; font-size: 1.2rem;">${title}</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; line-height: 1.6; margin-bottom: 24px;">${message}</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="albert-popup-close" style="
+                    padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+                    background: rgba(255,255,255,0.05); color: white; cursor: pointer; font-size: 0.9rem;
+                ">Fermer</button>
+                ${!isWisperMissing ? `<button id="albert-popup-settings" style="
+                    padding: 10px 20px; border-radius: 8px; border: none;
+                    background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white;
+                    cursor: pointer; font-size: 0.9rem; font-weight: 600;
+                ">Ouvrir les Paramètres</button>` : ''}
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('albert-popup-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    const settingsBtn = document.getElementById('albert-popup-settings');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            overlay.remove();
+            // Ouvrir la page paramètres de l'extension
+            const api = typeof browser !== 'undefined' ? browser : chrome;
+            if (api?.runtime?.openOptionsPage) {
+                api.runtime.openOptionsPage();
+            } else {
+                api.tabs.create({ url: api.runtime.getURL('sidepanel.html') });
+            }
+        });
+    }
+}
+
+// Attacher le bouton Albert au chargement
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
-        const transcribeBtn = document.getElementById('transcribe-whisper-btn');
-        if (transcribeBtn) {
-            transcribeBtn.addEventListener('click', startLocalWhisperTranscription);
+        const transcribeAlbertBtn = document.getElementById('transcribe-albert-btn');
+        if (transcribeAlbertBtn) {
+            transcribeAlbertBtn.addEventListener('click', startAlbertTranscription);
         }
     }, 1000);
 });

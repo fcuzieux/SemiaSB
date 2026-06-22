@@ -16,10 +16,10 @@ function initSettings() {
     // Récupérer la liste des modèles auprès du fournisseur
     async function fetchModelsForProvider(provider, apiKey) {
         if (!apiKey) return [];
-        
+
         let url = '';
         let headers = { 'Content-Type': 'application/json' };
-        
+
         try {
             if (provider === 'openai') {
                 url = 'https://api.openai.com/v1/models';
@@ -42,7 +42,7 @@ function initSettings() {
             } else {
                 return [];
             }
-            
+
             let response;
             try {
                 response = await fetch(url, { method: 'GET', headers });
@@ -59,9 +59,9 @@ function initSettings() {
                 console.warn(`fetchModelsForProvider failed for ${provider}:`, response.statusText);
                 return [];
             }
-            
+
             const data = await response.json();
-            
+
             if (provider === 'gemini') {
                 if (data.models && Array.isArray(data.models)) {
                     return data.models
@@ -75,7 +75,7 @@ function initSettings() {
                 }
                 return models.sort();
             }
-            
+
             return [];
         } catch (error) {
             console.error(`Error fetching models for ${provider}:`, error);
